@@ -25,8 +25,9 @@ class RROS:
 
     :param level:  the logging level
     '''
-    def __init__(self, level=Level.INFO):
+    def __init__(self, dot_pixel=None, level=Level.INFO):
         self._log        = Logger('rros', level)
+        self._dot_pixel  = dot_pixel
         self._bus        = MessageBus(level=level)
         self._publisher  = MockPublisher(self._bus, level=level)
         self._subscriber = MockSubscriber(self._bus, level=level)

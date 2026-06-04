@@ -52,7 +52,7 @@ _pixel = DotPixel()
 try:
     pre_blink()
     print_sysinfo()
-    _rros = RROS(level=Level.INFO)
+    _rros = RROS(_pixel, level=Level.INFO)
     # blocks until completion
     _rros.start()
 
