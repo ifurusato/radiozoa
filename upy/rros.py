@@ -30,15 +30,15 @@ class RROS:
     :param level:      the logging level
     '''
     def __init__(self, pixel=None, ring=None, level=Level.INFO):
-        self._log      = Logger('rros', level)
-        self.pixel     = pixel
-        self._ring     = ring
-        self._bus      = MessageBus(level=level)
+        self._log  = Logger('rros', level)
+        self.pixel = pixel
+        self._ring = ring
+        self._message_bus = MessageBus(level=level)
         # create I2C bus ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._log.info('configuring I2C bus…')
-        _i2c_id        = 1
-        _scl           =  9  # 22 on TinyPICO
-        _sda           =  8  # 21 on TinyPICO
+        _i2c_id    = 1
+        _scl       =  9  # 22 on TinyPICO
+        _sda       =  8  # 21 on TinyPICO
         _i2c_baud_rate = 400_000
         self._i2c = I2C(_i2c_id, scl=_scl, sda=_sda, freq=_i2c_baud_rate)
         # configure sensor addresses synchronously before async loop starts
@@ -51,11 +51,11 @@ class RROS:
         self._sensor = RadiozoaSensor(i2c=self._i2c, level=level)
         self._sensor.start_ranging()
         # publisher and subscriber
-        self._publisher  = ToFPublisher(self._sensor, self._bus, level=level)
-        self._subscriber = MockSubscriber(self._bus, level=level)
+        self._publisher  = ToFPublisher(self._sensor, self._message_bus, level=level)
+        self._subscriber = MockSubscriber(self._message_bus, level=level)
         if self._ring is not None:
             from ring_visualiser import RingVisualiser
-            self._visualiser = RingVisualiser(self._ring, self._bus, level=level)
+            self._visualiser = RingVisualiser(self._ring, self._message_bus, level=level)
         else:
             self._visualiser = None
         self._log.info('ready.')
@@ -63,10 +63,12 @@ class RROS:
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     async def run(self):
-        self._bus.enable()
+        self._message_bus.enable()
         self._publisher.enable()
         self._subscriber.enable()
-        asyncio.create_task(self._bus.consume_loop())
+        if self._visualiser is not None:
+            self._visualiser.enable()
+        asyncio.create_task(self._message_bus.consume_loop())
         asyncio.create_task(self._publisher.poll_loop())
         self._log.info('running…')
         while True:
@@ -74,5 +76,12 @@ class RROS:
 
     def start(self):
         asyncio.run(self.run())
+
+    def close(self):
+        if self._visualiser is not None:
+            self._visualiser.close()
+        self._publisher.close()
+        self._subscriber.close()
+        self._message_bus.close()
 
 #EOF

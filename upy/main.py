@@ -56,6 +56,7 @@ else: # otherwise TinyPICO
     from pico_pixel import PicoPixel
     _pixel = PicoPixel()
 
+_rros = None
 try:
     pre_blink()
     print_sysinfo()
@@ -71,6 +72,8 @@ except KeyboardInterrupt:
 except Exception as e:
     log.error('{} raised: {}'.format(type(e), e))
 finally:
+    if _rros:
+        _rros.close()
     _pixel.close()
 
 #EOF

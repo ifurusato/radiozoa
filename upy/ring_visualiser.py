@@ -54,4 +54,8 @@ class RingVisualiser(Subscriber):
         else:
             return COLOR_DARK_GREEN
 
+    def close(self):
+        self._ring.off()
+        Subscriber.close(self)
+
 #EOF

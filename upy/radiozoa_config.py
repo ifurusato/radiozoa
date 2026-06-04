@@ -55,6 +55,13 @@ class RadiozoaConfig:
         self._ring = ring
 
     def configure(self):
+        # check if all sensors are already at their target addresses
+        self._i2c_scanner.scan()
+        _expected = [device.i2c_address for device in Device.all() if device.impl is not None]
+        if all(self._i2c_scanner.has_hex_address(addr) for addr in _expected):
+            self._log.info('all sensors already configured, skipping address assignment.')
+            self._configured = True
+            return
         self._shutdown_all_sensors()
         self._configure_sensor_addresses()
         self._log.info('all sensor addresses configured.')
