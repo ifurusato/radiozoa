@@ -57,7 +57,7 @@ class Event:
 # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 # event instances
 
-TOF_DISTANCES = Event(0, 'tof-distances', priority=0.5)
-SYSTEM        = Event(1, 'system',        priority=1.0)
+TOF_DISTANCES = Event(0, 'tof',    priority=0.5)
+SYSTEM        = Event(1, 'system', priority=1.0)
 
 #EOF

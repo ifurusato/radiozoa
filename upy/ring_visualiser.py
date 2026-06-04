@@ -13,6 +13,7 @@ from logger import Level
 from event import TOF_DISTANCES
 from subscriber import Subscriber
 from radiozoa_sensor import RadiozoaSensor, OUT_OF_RANGE
+from pixel import Pixel
 from cardinal import Cardinal
 from colors import *
 
@@ -30,6 +31,8 @@ class RingVisualiser(Subscriber):
         Subscriber.__init__(self, 'ring-vis', message_bus, level)
         self._ring = ring
         self.add_event(TOF_DISTANCES)
+        self._use_enumerated_colors = False
+        self._color = None
         # clear ring on startup
         self._ring.off()
 
@@ -37,10 +40,13 @@ class RingVisualiser(Subscriber):
         distances = message.value
         for cardinal in Cardinal._registry:
             distance = distances[cardinal.id]
-            color = self._distance_to_color(distance)
-            self._ring.set_color(cardinal.pixel, color)
+            if self._use_enumerated_colors:
+                self._color = self._distance_to_enumerated_color(distance)
+            else:
+                self._color = self._distance_to_color(distance)
+            self._ring.set_color(cardinal.pixel, self._color)
 
-    def _distance_to_color(self, distance):
+    def _distance_to_enumerated_color(self, distance):
         if distance >= OUT_OF_RANGE:
             return COLOR_BLACK
         elif distance <= RadiozoaSensor.CLOSE_THRESHOLD:
@@ -51,8 +57,19 @@ class RingVisualiser(Subscriber):
             return COLOR_YELLOW
         elif distance <= RadiozoaSensor.FAR_THRESHOLD:
             return COLOR_GREEN
+        elif distance <= 2000:
+            return COLOR_CYAN
+        elif distance <= 4000:
+            return COLOR_INDIGO
         else:
-            return COLOR_DARK_GREEN
+            return COLOR_BLACK
+
+    def _distance_to_color(self, distance):
+        if distance >= OUT_OF_RANGE:
+            return COLOR_BLACK
+        d = min(max(distance, 0), 4000)
+        hue = (d / 4000) * 0.75  # 0.0=red through to 0.75=indigo
+        return Pixel.hsv_to_rgb(hue)
 
     def close(self):
         self._ring.off()
