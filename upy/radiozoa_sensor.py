@@ -9,6 +9,7 @@
 # created:  2026-01-29
 # modified: 2026-06-04
 
+import sys
 import time
 from machine import I2C
 
@@ -58,7 +59,8 @@ class RadiozoaSensor:
                     cardinal.name, dev.i2c_address))
             try:
                 if dev.impl == 'VL53L1X':
-                    sensor = VL53L1X(self._i2c, address=dev.i2c_address)
+#                   _debug = dev.index == 6 # set debug
+                    sensor = VL53L1X(self._i2c, address=dev.i2c_address, debug=_debug)
                 else:
                     sensor = None
                 self._sensors[cardinal] = sensor
@@ -66,6 +68,7 @@ class RadiozoaSensor:
             except Exception as e:
                 self._log.error('{} raised creating sensor {}: {}'.format(
                         type(e), cardinal.name, e))
+                sys.print_exception(e)
                 raise
 
     def start_ranging(self):
