@@ -11,9 +11,7 @@
 
 import time
 import os, gc, sys
-from machine import SoftSPI, Pin
-import tinypico as TinyPICO
-from dotstar import DotStar
+from dot_pixel import DotPixel
 
 from colors import *
 from logger import Logger, Level
@@ -28,21 +26,12 @@ for mod in ['main']:
     if mod in sys.modules:
         del sys.modules[mod]
 
-# dotstar ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-
-spi      = SoftSPI(sck=Pin(TinyPICO.DOTSTAR_CLK), mosi=Pin(TinyPICO.DOTSTAR_DATA), miso=Pin(TinyPICO.SPI_MISO))
-_dotstar = DotStar(spi, 1, brightness=0.3)
-TinyPICO.set_dotstar_power(True)
-
-def show_color(color):
-    _dotstar[0] = color
-
 def pre_blink():
     for i in range(START_COUNT):
         log.info('[{}/{}] starting…'.format(i + 1, START_COUNT))
-        show_color(COLOR_DARK_CYAN)
+        _pixel.show_color(COLOR_DARK_CYAN)
         time.sleep_ms(50)
-        show_color(COLOR_BLACK)
+        _pixel.show_color(COLOR_BLACK)
         time.sleep_ms(950)
 
 def print_sysinfo():
@@ -58,20 +47,20 @@ def print_sysinfo():
 
 # main ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
+_pixel = DotPixel()
+
 try:
     pre_blink()
     print_sysinfo()
     _rros = RROS(level=Level.INFO)
     # blocks until completion
     _rros.start()
-#   asyncio.run(_rros.run())
 
 except KeyboardInterrupt:
     log.info('interrupted.')
 except Exception as e:
     log.error('{} raised: {}'.format(type(e), e))
 finally:
-    show_color(COLOR_BLACK)
-    _dotstar.deinit()
+    _pixel.close()
 
 #EOF

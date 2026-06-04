@@ -23,7 +23,7 @@ class Subscriber(Component):
     '''
     def __init__(self, name, message_bus, level=Level.INFO):
         Component.__init__(self, name)
-        self._log         = Logger(name, level)
+        self._log         = Logger('sub:{}'.format(name), level)
         self._message_bus = message_bus
         self._events      = []
         message_bus.add_subscriber(self)
