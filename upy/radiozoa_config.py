@@ -129,21 +129,21 @@ class RadiozoaConfig:
                 if not found:
                     self._log.warning('sensor {} did not appear at 0x29.'.format(device.label))
                     if self._ring:
-                        self._ring.set_color(device.index, COLOR_RED)
+                        self._ring.set_color(device.pixel, COLOR_RED)
                     continue
                 try:
                     self._set_i2c_address(device, device.i2c_address)
                     self._log.info('set address for sensor {} to 0x{:02X}.'.format(
                             device.label, device.i2c_address))
                     if self._ring:
-                        self._ring.set_color(device.index, COLOR_DARK_GREEN)
+                        self._ring.set_color(device.pixel, COLOR_DARK_GREEN)
                     _count += 1
                 except Exception as e:
                     self._log.error('{} raised setting address for sensor {}: {}'.format(
                             type(e), device.label, e))
                     sys.print_exception(e)
                     if self._ring:
-                        self._ring.set_color(device.index, COLOR_RED)
+                        self._ring.set_color(device.pixel, COLOR_RED)
                 time.sleep_ms(_device_delay_ms)
         if _count == 8:
             self._configured = True

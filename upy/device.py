@@ -35,11 +35,12 @@ class Device:
           d = Device.by_index(3)
           print(d.label)
     '''
-    def __init__(self, index, impl, label, i2c_address, xshut):
+    def __init__(self, index, impl, label, i2c_address, pixel, xshut):
         self._index = index
         self._impl  = impl
         self._label = label
         self._i2c_address = i2c_address
+        self._pixel = pixel
         self._xshut = xshut
         Device._registry.append(self)
 
@@ -60,6 +61,10 @@ class Device:
         return self._i2c_address
 
     @property
+    def pixel(self):
+        return self._pixel
+
+    @property
     def xshut(self):
         return self._xshut
 
@@ -67,8 +72,8 @@ class Device:
         return self._index
 
     def __repr__(self):
-        return "Device({}, {}, 0x{:02X}, xshut={})".format(
-            self._index, self._label, self.i2c_address, self._xshut
+        return "Device({}, {}, 0x{:02X}, xshut={}, pixel={})".format(
+            self._index, self._label, self.i2c_address, self._xshut, self._pixel
         )
 
     def __eq__(self, other):
@@ -107,14 +112,14 @@ class Device:
                 return d
         return None
 
-#            IDX  IMPL      DIR    ADDR  PIN   WIRE COLOR   S3MINI  TINYPICO  TINYS3
-N0  = Device( 0, 'VL53L1X', 'N0',  0x30, 37) # red/grey       4        19       37
-NE1 = Device( 1, 'VL53L1X', 'NE1', 0x31,  1) # red/white      34        4        1
-E2  = Device( 2, 'VL53L1X', 'E2',  0x32, 36) # green/grey     3        18       36
-SE3 = Device( 3, 'VL53L1X', 'SE3', 0x33,  2) # green/white    35       14        2
-S4  = Device( 4, 'VL53L1X', 'S4',  0x34, 35) # blue/grey      2        23       35
-SW5 = Device( 5, 'VL53L1X', 'SW5', 0x35,  3) # blue/white     36       15        3
-W6  = Device( 6, 'VL53L1X', 'W6',  0x36, 34) # grey           1         5       34
-NW7 = Device( 7, 'VL53L1X', 'NW7', 0x37,  4) # white          37       27        4
+#            IDX  IMPL      DIR    ADDR  PIX PIN   WIRE COLOR   S3MINI  TINYPICO  TINYS3
+N0  = Device( 0, 'VL53L1X', 'N0',  0x30, 13, 37) # red/grey       4        19       37
+NE1 = Device( 1, 'VL53L1X', 'NE1', 0x31, 16,  1) # red/white      34        4        1
+E2  = Device( 2, 'VL53L1X', 'E2',  0x32, 19, 36) # green/grey     3        18       36
+SE3 = Device( 3, 'VL53L1X', 'SE3', 0x33, 22,  2) # green/white    35       14        2
+S4  = Device( 4, 'VL53L1X', 'S4',  0x34,  1, 35) # blue/grey      2        23       35
+SW5 = Device( 5, 'VL53L1X', 'SW5', 0x35,  4,  3) # blue/white     36       15        3
+W6  = Device( 6, 'VL53L1X', 'W6',  0x36,  7, 34) # grey           1         5       34
+NW7 = Device( 7, 'VL53L1X', 'NW7', 0x37, 10,  4) # white          37       27        4
 
 #EOF
