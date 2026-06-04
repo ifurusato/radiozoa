@@ -25,21 +25,21 @@ class RROS:
     Radiozoa Robot Operating System. Configures sensors, constructs and wires
     all system components, and provides the main async run loop.
 
-    :param dot_pixel:  the DotPixel instance for status indication
+    :param pixel:      the RGB LED instance for status indication
     :param ring:       optional NeoPixel ring for sensor visualisation
     :param level:      the logging level
     '''
-    def __init__(self, dot_pixel=None, ring=None, level=Level.INFO):
-        self._log       = Logger('rros', level)
-        self._dot_pixel = dot_pixel
-        self._ring      = ring
-        self._bus       = MessageBus(level=level)
+    def __init__(self, pixel=None, ring=None, level=Level.INFO):
+        self._log      = Logger('rros', level)
+        self.pixel     = pixel
+        self._ring     = ring
+        self._bus      = MessageBus(level=level)
         # create I2C bus ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._log.info('configuring I2C bus…')
-        _i2c_id         = 1
-        _scl            = 22 
-        _sda            = 21
-        _i2c_baud_rate  = 400_000
+        _i2c_id        = 1
+        _scl           =  9  # 22 on TinyPICO
+        _sda           =  8  # 21 on TinyPICO
+        _i2c_baud_rate = 400_000
         self._i2c = I2C(_i2c_id, scl=_scl, sda=_sda, freq=_i2c_baud_rate)
         # configure sensor addresses synchronously before async loop starts
         self._log.info('configuring sensors…')

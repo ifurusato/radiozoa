@@ -33,7 +33,7 @@ class RadiozoaConfig:
     :param level:   the logging level
     '''
     def __init__(self, i2c=None, ring=None, level=Level.INFO):
-        self._log = Logger('rzconfig', level=level)
+        self._log = Logger('config', level=level)
         if i2c is None:
             raise TypeError('i2c bus argument is null.')
         self._i2c = i2c

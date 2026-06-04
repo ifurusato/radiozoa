@@ -107,14 +107,14 @@ class Device:
                 return d
         return None
 
-#            IDX  IMPL       DIR   ADDR   PIN    WIRE COLOR  PREV
-N0  = Device( 0, 'VL53L1X', 'N0',  0x30, 19) # red/grey       4
-NE1 = Device( 1, 'VL53L1X', 'NE1', 0x31,  4) # red/white      34
-E2  = Device( 2, 'VL53L1X', 'E2',  0x32, 18) # green/grey     3
-SE3 = Device( 3, 'VL53L1X', 'SE3', 0x33, 14) # green/white    35
-S4  = Device( 4, 'VL53L1X', 'S4',  0x34, 23) # blue/grey      2
-SW5 = Device( 5, 'VL53L1X', 'SW5', 0x35, 15) # blue/white     36
-W6  = Device( 6, 'VL53L1X', 'W6',  0x36,  5) # grey           1
-NW7 = Device( 7, 'VL53L1X', 'NW7', 0x37, 27) # white          37
+#            IDX  IMPL      DIR    ADDR  PIN   WIRE COLOR   S3MINI  TINYPICO  TINYS3
+N0  = Device( 0, 'VL53L1X', 'N0',  0x30, 37) # red/grey       4        19       37
+NE1 = Device( 1, 'VL53L1X', 'NE1', 0x31,  1) # red/white      34        4        1
+E2  = Device( 2, 'VL53L1X', 'E2',  0x32, 36) # green/grey     3        18       36
+SE3 = Device( 3, 'VL53L1X', 'SE3', 0x33,  2) # green/white    35       14        2
+S4  = Device( 4, 'VL53L1X', 'S4',  0x34, 35) # blue/grey      2        23       35
+SW5 = Device( 5, 'VL53L1X', 'SW5', 0x35,  3) # blue/white     36       15        3
+W6  = Device( 6, 'VL53L1X', 'W6',  0x36, 34) # grey           1         5       34
+NW7 = Device( 7, 'VL53L1X', 'NW7', 0x37,  4) # white          37       27        4
 
 #EOF

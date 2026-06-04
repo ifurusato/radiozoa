@@ -11,11 +11,12 @@
 
 import time
 import os, gc, sys
-from dot_pixel import DotPixel
 
 from colors import *
 from logger import Logger, Level
 from rros import RROS
+
+IS_TINYS3 = True # otherwise TinyPICO
 
 START_COUNT = 3
 
@@ -47,7 +48,13 @@ def print_sysinfo():
 
 # main ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
-_pixel = DotPixel()
+_pixel = None
+if IS_TINYS3:
+    from s3_pixel import S3Pixel
+    _pixel = S3Pixel()
+else: # otherwise TinyPICO
+    from pico_pixel import PicoPixel
+    _pixel = PicoPixel()
 
 try:
     pre_blink()
