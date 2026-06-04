@@ -105,7 +105,7 @@ class RadiozoaConfig:
         for device in Device.all():
             if device and device.impl is not None:
                 if self._ring:
-                    self._ring.set_color(device.index, COLOR_YELLOW_GREEN)
+                    self._ring.set_color(device.index, COLOR_APPLE)
                 self._log.info('configuring sensor {} at XSHUT pin {}…'.format(
                         device.label, device.xshut))
                 self._set_xshut(device.index, True)

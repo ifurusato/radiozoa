@@ -59,7 +59,10 @@ else: # otherwise TinyPICO
 try:
     pre_blink()
     print_sysinfo()
-    _rros = RROS(_pixel, level=Level.INFO)
+
+    from pixel import Pixel
+    _ring = Pixel(pin=44, pixel_count=24, color_order='GRB', brightness=0.1)
+    _rros = RROS(_pixel, ring=_ring, level=Level.INFO)
     # blocks until completion
     _rros.start()
 

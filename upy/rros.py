@@ -53,6 +53,11 @@ class RROS:
         # publisher and subscriber
         self._publisher  = ToFPublisher(self._sensor, self._bus, level=level)
         self._subscriber = MockSubscriber(self._bus, level=level)
+        if self._ring is not None:
+            from ring_visualiser import RingVisualiser
+            self._visualiser = RingVisualiser(self._ring, self._bus, level=level)
+        else:
+            self._visualiser = None
         self._log.info('ready.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
