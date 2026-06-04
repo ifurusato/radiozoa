@@ -60,7 +60,7 @@ class RadiozoaSensor:
             try:
                 if dev.impl == 'VL53L1X':
 #                   _debug = dev.index == 6 # set debug
-                    sensor = VL53L1X(self._i2c, address=dev.i2c_address, debug=_debug)
+                    sensor = VL53L1X(self._i2c, address=dev.i2c_address) #, debug=_debug)
                 else:
                     sensor = None
                 self._sensors[cardinal] = sensor
