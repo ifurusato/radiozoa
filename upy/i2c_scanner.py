@@ -7,28 +7,17 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-01-27
-# modified: 2026-02-17
-
-import machine
+# modified: 2026-06-04
 
 from colorama import Fore, Style
 
 class I2CScanner:
     '''
-    Do not specify SDA or SCL for the STM32, only the bus number.
-    You may need to modify this for your microcontroller.
-
     Args:
-        id:    identifies a particular I2C peripheral. Allowed values depend on the particular port/board.
-        scl:   should be a pin object specifying the pin to use for SCL.
-        sda:   should be a pin object specifying the pin to use for SDA.
+        i2c:   the instantiated I2C bus
     '''
-    def __init__(self, i2c_id=1, scl=None, sda=None):
-        self._i2c_id = i2c_id
-        if scl and sda:
-            self.i2c = machine.I2C(i2c_id, scl=scl, sda=sda)
-        else:
-            self.i2c = machine.I2C(i2c_id)
+    def __init__(self, i2c=None):
+        self._i2c     = i2c
         self._devices = []
         # ready.
 
@@ -43,8 +32,8 @@ class I2CScanner:
         '''
         Scan all valid 7-bit I2C addresses, returning a list of found addresses.
         '''
-        print(Fore.CYAN + Style.DIM + 'starting I2C{} scan…'.format(self._i2c_id) + Style.RESET_ALL)
-        self._devices = self.i2c.scan()
+        print(Fore.CYAN + Style.DIM + 'starting I2C scan…' + Style.RESET_ALL)
+        self._devices = self._i2c.scan()
         if len(self._devices) == 0:
             print(Fore.CYAN + 'no I2C devices found.' + Style.RESET_ALL)
         else:
