@@ -1,4 +1,4 @@
-# The Radiozoa Robot
+# The Radiozoa Robot Operating System (RROS)
 
 The Radiozoa is a third-generation autonomous robot implemented on a single 160mm 
 diameter PC board. The hardware architecture integrates eight VL53L1X Time-of-Flight 
@@ -7,7 +7,7 @@ motor driver, a 5V 3A buck-boost regulator, and a 3.3V to 5V level shifter to dr
 NeoPixel ring. The rough cost of building this robot was targeted at around US$100.
 
 
-# The Radiozoa Robot Operating System (RROS)
+# Description
 
 The Radiozoa Robot Operating System (RROS) is written in MicroPython and is capable of coordinating 
 multiple concurrent behaviors by blending their target velocities into a single movement vector, which 
