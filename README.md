@@ -20,11 +20,10 @@ chassis away from closer obstacles, turning a lateral error into a heading corre
 functions as a closed feedback loop where the physical environment acts as the frame of reference, 
 allowing the robot to center itself without an IMU.
 
-Once the final target velocities for the port and starboard motors are calculated, they pass through 
-to the motor PID controllers, which includes both slew limiting (acceleration/deceleration ramping) 
-and hardware min/max limiting. To ensure smooth execution on the ESP32-S3 microcontroller, an 
-exponential moving average is applied to the power outputs to eliminate timing jitter and erratic 
-motor changes. 
+Once the final target velocities for the port and starboard motors are calculated, this passes through 
+both slew limiting (acceleration/deceleration ramping) and hardware min/max filters and then on to the 
+motor PID controllers. To ensure smooth execution on the ESP32-S3 microcontroller, an exponential 
+moving average is applied to the power outputs to eliminate timing jitter and erratic motor changes. 
 
 The software implementation is optimized for MicroPython, using low-allocation routines and minimal 
 thread locking to prevent runtime latency spikes during garbage collection.
