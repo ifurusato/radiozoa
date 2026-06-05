@@ -53,9 +53,9 @@ This configuration may be found at the bottom of the Device class.
 
 ## Configuration
 
-To manage this configuration, the system utilizes eight dedicated GPIO pins on the ESP32-S3, with each 
+To manage this configuration, the system utilises eight dedicated GPIO pins on the ESP32-S3, with each 
 pin wired directly to the hardware shutdown (XSHUT) pin of a corresponding VL53 sensor. By driving these 
-lines low, the initialization routine forces all sensors into a hardware standby state at startup. 
+lines low, the initialisation routine forces all sensors into a hardware standby state at startup. 
 
 The system then pulls a single XSHUT line high to wake a target sensor, assigns it a new address via 
 the I2C bus, and leaves it active while repeating the process for the next sensor in the sequence. 
