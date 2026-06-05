@@ -17,7 +17,7 @@ from message_bus import MessageBus
 from radiozoa_config import RadiozoaConfig
 from radiozoa_sensor import RadiozoaSensor
 from tof_publisher import ToFPublisher
-from mock_subscriber import MockSubscriber
+from tof_subscriber import TofSubscriber
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class RROS:
@@ -30,6 +30,7 @@ class RROS:
     :param level:      the logging level
     '''
     def __init__(self, pixel=None, ring=None, level=Level.INFO):
+        self._level = level
         self._log  = Logger('rros', level)
         self.pixel = pixel
         self._ring = ring
@@ -41,21 +42,32 @@ class RROS:
         _sda       =  8  # 21 on TinyPICO
         _i2c_baud_rate = 400_000
         self._i2c = I2C(_i2c_id, scl=_scl, sda=_sda, freq=_i2c_baud_rate)
+        # create components ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._sensor     = None
+        self._visualiser = None
+        self._publisher  = None
+        self._subscriber = None
         # configure sensor addresses synchronously before async loop starts
         self._log.info('configuring sensors…')
-        _config = RadiozoaConfig(i2c=self._i2c, ring=ring, level=level)
-        _config.configure()
-        if not _config.configured:
+        self._config = RadiozoaConfig(i2c=self._i2c, ring=ring, level=level)
+        self._config.configure(self.continue_init)
+
+    def continue_init(self):
+        if not self._config.configured:
             raise RuntimeError('sensor configuration failed.')
+        self._log.info('configuring radiozoa sensor…')
         # create and start ranging
-        self._sensor = RadiozoaSensor(i2c=self._i2c, level=level)
+        self._sensor = RadiozoaSensor(i2c=self._i2c, level=self._level)
         self._sensor.start_ranging()
         # publisher and subscriber
-        self._publisher  = ToFPublisher(self._sensor, self._message_bus, level=level)
-        self._subscriber = MockSubscriber(self._message_bus, level=level)
+        self._log.info('creating publisher…')
+        self._publisher  = ToFPublisher(self._sensor, self._message_bus, level=self._level)
+        self._log.info('creating subscriber…')
+        self._subscriber = TofSubscriber(self._message_bus, level=self._level)
         if self._ring is not None:
             from ring_visualiser import RingVisualiser
-            self._visualiser = RingVisualiser(self._ring, self._message_bus, level=level)
+            self._log.info('creating ring visualiser…')
+            self._visualiser = RingVisualiser(self._ring, self._message_bus, level=self._level)
         else:
             self._visualiser = None
         self._log.info('ready.')

@@ -54,6 +54,8 @@ class Pixel:
         _index = self._pixel_index if index is None else index
         if isinstance(color, Color):
             self._neopixel[_index] = color.rgb
+        elif isinstance(color, tuple):
+            self._neopixel[_index] = color 
         elif color is None:
             self._neopixel[_index] = (0, 0, 0)
         else:

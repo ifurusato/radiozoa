@@ -39,6 +39,7 @@ class RadiozoaConfig:
         self._i2c = i2c
         self._default_i2c_address = 0x29
         self._configured = False
+        self._check_configured = False
         self._ring = ring
         self._xshut_pins = {}
         self._setup_pins()
@@ -51,20 +52,20 @@ class RadiozoaConfig:
     def configured(self):
         return self._configured
 
-    def set_ring(self, ring):
-        self._ring = ring
-
-    def configure(self):
+    def configure(self, callback):
         # check if all sensors are already at their target addresses
-        self._i2c_scanner.scan()
-        _expected = [device.i2c_address for device in Device.all() if device.impl is not None]
-        if all(self._i2c_scanner.has_hex_address(addr) for addr in _expected):
-            self._log.info('all sensors already configured, skipping address assignment.')
-            self._configured = True
-            return
+        if self._check_configured:
+            self._i2c_scanner.scan()
+            _expected = [device.i2c_address for device in Device.all() if device.impl is not None]
+            if all(self._i2c_scanner.has_hex_address(addr) for addr in _expected):
+                self._log.info('all sensors already configured, skipping address assignment.')
+                self._configured = True
+                return
         self._shutdown_all_sensors()
         self._configure_sensor_addresses()
         self._log.info('all sensor addresses configured.')
+        if callback is not None:
+            callback()
 
     def reset(self):
         from device import N0
@@ -109,47 +110,56 @@ class RadiozoaConfig:
         _device_delay_ms = 333
         _scan_delay_ms   = 750
         _count = 0
-        for device in Device.all():
-            if device and device.impl is not None:
-                if self._ring:
-                    self._ring.set_color(device.index, COLOR_APPLE)
-                self._log.info('configuring sensor {} at XSHUT pin {}…'.format(
-                        device.label, device.xshut))
-                self._set_xshut(device.index, True)
-                found = False
-                for i in range(5):
-                    time.sleep_ms(_scan_delay_ms)
-                    self._i2c_scanner.scan()
-                    found = self._i2c_scanner.has_hex_address(0x29)
-                    if found:
-                        self._log.info(Style.DIM + '[{}] sensor appeared at 0x29.'.format(i))
-                        break
-                    else:
-                        self._log.info(Style.DIM + '[{}] waiting for sensor…'.format(i))
-                if not found:
-                    self._log.warning('sensor {} did not appear at 0x29.'.format(device.label))
-                    if self._ring:
-                        self._ring.set_color(device.pixel, COLOR_RED)
-                    continue
-                try:
-                    self._set_i2c_address(device, device.i2c_address)
-                    self._log.info('set address for sensor {} to 0x{:02X}.'.format(
-                            device.label, device.i2c_address))
-                    if self._ring:
-                        self._ring.set_color(device.pixel, COLOR_DARK_GREEN)
-                    _count += 1
-                except Exception as e:
-                    self._log.error('{} raised setting address for sensor {}: {}'.format(
-                            type(e), device.label, e))
-                    sys.print_exception(e)
-                    if self._ring:
-                        self._ring.set_color(device.pixel, COLOR_RED)
-                time.sleep_ms(_device_delay_ms)
-        if _count == 8:
-            self._configured = True
+
+        devices = [d for d in Device.all() if d and d.impl is not None]
+        devices.sort(key=lambda d: d.pixel)
+        for device in devices:
             if self._ring:
-                for index in range(8):
-                    self._ring.set_color(index, COLOR_BLACK)
+                self._ring.set_color(device.pixel - 1, COLOR_FUCHSIA)
+            self._log.info('configuring sensor {} at XSHUT pin {}…'.format(
+                    device.label, device.xshut))
+            self._set_xshut(device.index, True)
+            found = False
+            for i in range(5):
+                time.sleep_ms(_scan_delay_ms)
+                self._i2c_scanner.scan()
+                found = self._i2c_scanner.has_hex_address(0x29)
+                if found:
+                    self._log.info(Style.DIM + '[{}] sensor appeared at 0x29.'.format(i))
+                    break
+                else:
+                    self._log.info(Style.DIM + '[{}] waiting for sensor…'.format(i))
+            if not found:
+                self._log.warning('sensor {} did not appear at 0x29.'.format(device.label))
+                if self._ring:
+                    self._ring.set_color(device.pixel - 1, COLOR_RED)
+                continue
+            try:
+                self._set_i2c_address(device, device.i2c_address)
+                self._log.info('set address for sensor {} to 0x{:02X}.'.format(
+                        device.label, device.i2c_address))
+                if self._ring:
+                    self._ring.set_color(device.pixel - 1, COLOR_GREEN)
+                _count += 1
+            except Exception as e:
+                self._log.error('{} raised setting address for sensor {}: {}'.format(
+                        type(e), device.label, e))
+                sys.print_exception(e)
+                if self._ring:
+                    self._ring.set_color(device.pixel - 1, COLOR_RED)
+            time.sleep_ms(_device_delay_ms)
+
+        if _count == 8:
+            if self._ring:
+                # fade out
+                for green in range(255, -1, -5):
+                    color = (0, green, 0)
+                    for device in devices:
+                        self._ring.set_color(device.pixel - 1, color)
+#               for index in range(24):
+#                   self._ring.set_color(index, COLOR_BLACK)
+            self._configured = True
+
         else:
             self._configured = False
             self._log.warning('configured {} of 8 sensors.'.format(_count))
