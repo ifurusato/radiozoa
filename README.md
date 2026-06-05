@@ -1,10 +1,14 @@
 # The Radiozoa Robot Operating System (RROS)
 
 The Radiozoa is a third-generation autonomous robot implemented on a single 160mm 
-diameter PC board. The hardware architecture integrates eight VL53L1X Time-of-Flight 
-(ToF) distance sensors, a WeAct ESP32-S3-FH4R2 microcontroller, a DRV8833 two-channel 
-motor driver, a 5V 3A buck-boost regulator, and a 3.3V to 5V level shifter to drive a 
-NeoPixel ring. The rough cost of building this robot was targeted at around US$100.
+diameter PC board. The hardware design integrates eight VL53L1X Time-of-Flight (ToF) 
+distance sensors, a WeAct ESP32-S3-FH4R2 microcontroller, a DRV8833 two-channel motor 
+driver, a 5V 3A buck-boost regulator, and a 3.3V to 5V level shifter to drive a NeoPixel 
+ring. 
+
+Most of the hardware choices are relatively generic and subsitutions are certainly possible.
+
+The rough cost of building this robot was targeted at around US$100.
 
 
 # Description
