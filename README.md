@@ -1,10 +1,13 @@
-# radiozoa
+# The Radiozoa Robot
 
 The Radiozoa is a third-generation autonomous robot implemented on a single 160mm 
 diameter printed circuit board (PCB). The hardware architecture integrates eight VL53L1X 
 Time-of-Flight (ToF) distance sensors, a WeAct ESP32-S3-FH4R2 microcontroller, a DRV8833 
 two-channel motor driver, a 5V 3A buck-boost regulator, and a level shifter to drive a 
 NeoPixel ring.
+
+
+# The Radiozoa Robot Operating System (RROS)
 
 The Radiozoa Robot Operating System (RROS) is written in MicroPython and coordinates multiple 
 concurrent behaviors by blending their target velocities into a single movement vector, which 
@@ -39,4 +42,29 @@ The MotorController executes forward velocity kinematics, taking a desired body-
 Because this relies on a direct algebraic distribution of the target body velocities straight to the 
 wheel actuators, the pipeline falls strictly under standard forward wheel kinematics.
 
-See: https://github.com/WeActStudio/WeActStudio.ESP32S3-MINI.git
+
+# Generalised
+
+Note that while the hardware uses a custom PB board, this software could be used with any set of 1-8
+VL53L0X or VL53L1X sensors and an ESP32, with the code easily ported to a different microcontroller
+family by making necessary changes to the I2C pin configuration and the pins chosen for the eight 
+connections to the XSHUT pins on each of the eight ToF sensors. The specific configuraiton may be
+found at the bottom of the Device class.
+
+
+## Configuration
+
+To manage this configuration, the system utilizes eight dedicated GPIO pins on the ESP32-S3, with each 
+pin wired directly to the hardware shutdown (XSHUT) pin of a corresponding VL53 sensor. By driving these 
+lines low, the initialization routine forces all sensors into a hardware standby state at startup. 
+
+The system then pulls a single XSHUT line high to wake a target sensor, assigns it a new address via 
+the I2C bus, and leaves it active while repeating the process for the next sensor in the sequence. 
+This combination of discrete GPIO control lines and sequential software addressing safely resolves the 
+address conflict without requiring external multiplexing hardware.
+
+
+## References
+
+See: [WeAct ESP32-S3-FH4R2](https://github.com/WeActStudio/WeActStudio.ESP32S3-MINI.git)
+
