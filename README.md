@@ -1,5 +1,7 @@
 # The Radiozoa Robot Operating System (RROS)
 
+![2nd Generation Radiozoa Test Rig](img/radiozoa_6159.jpg)
+
 The Radiozoa is a third-generation autonomous robot implemented on a single 160mm 
 diameter PC board. The hardware design integrates eight VL53L1X Time-of-Flight (ToF) 
 distance sensors, a WeAct ESP32-S3-FH4R2 microcontroller, a DRV8833 two-channel motor 
