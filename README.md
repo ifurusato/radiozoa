@@ -1,6 +1,9 @@
 # The Radiozoa Robot Operating System (RROS)
 
-![2nd Generation Radiozoa Test Rig](img/radiozoa_6159.jpg)
+<figure>
+  <img src="img/radiozoa_6159.jpg" alt="2nd Generation Radiozoa Test Rig">
+  <figcaption>2nd Generation Radizoa Test Rig</figcaption>
+</figure>
 
 The Radiozoa is a third-generation autonomous robot implemented on a single 160mm 
 diameter PC board. The hardware design integrates eight VL53L1X Time-of-Flight (ToF) 
