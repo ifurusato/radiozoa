@@ -42,11 +42,11 @@ The MotorController executes forward velocity kinematics, taking a desired body-
 
 # Generalised
 
-Note that while the hardware uses a custom PB board, this software could be used with any set of 1-8
-VL53L0X or VL53L1X sensors and an ESP32, with the code easily ported to a different microcontroller
-family by making necessary changes to the I2C pin configuration and the pins chosen for the eight 
-connections to the XSHUT pins on each of the eight ToF sensors. The specific configuraiton may be
-found at the bottom of the Device class.
+Note that while this code was designed to operate a robot using a custom PC board, this software 
+could be used with any set of 1-8 VL53L0X or VL53L1X sensors and an ESP32, with the code easily 
+ported to a different microcontroller family by making necessary changes to the I2C pin configuration 
+and the pins chosen for the eight connections to the XSHUT pins on each of the eight ToF sensors. 
+The specific configuraiton may be found at the bottom of the Device class.
 
 
 ## Configuration
