@@ -2,7 +2,7 @@
 
 > ![2nd Generation Radiozoa Test Rig](img/radiozoa_6159.jpg)
 >
-> *Figure 1: 2nd Generation Radiozoa Test Rig.*
+> *Figure 1: 2nd Generation Radiozoa Test Rig Using an STM32F405.*
 
 The Radiozoa is a third-generation autonomous robot implemented on a single 160mm 
 diameter PC board. The hardware design integrates eight VL53L1X Time-of-Flight (ToF) 
