@@ -29,9 +29,6 @@ both slew limiting (acceleration/deceleration ramping) and hardware min/max filt
 motor PID controllers. For smoother execution, an exponential moving average is applied to the power 
 outputs to eliminate timing jitter and erratic motor changes. 
 
-The software implementation is optimized for MicroPython, using low-allocation routines and minimal 
-thread locking to prevent runtime latency spikes during garbage collection.
-
 The MotorController executes forward velocity kinematics, taking a desired body-level velocity vector 
 (vx, vy, omega) and mapping it directly to individual wheel velocities:
 
