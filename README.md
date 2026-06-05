@@ -9,8 +9,8 @@ NeoPixel ring. The rough cost of building this robot was targeted at around US$1
 
 # The Radiozoa Robot Operating System (RROS)
 
-The Radiozoa Robot Operating System (RROS) is written in MicroPython and coordinates multiple 
-concurrent behaviors by blending their target velocities into a single movement vector, which 
+The Radiozoa Robot Operating System (RROS) is written in MicroPython and is capable of coordinating 
+multiple concurrent behaviors by blending their target velocities into a single movement vector, which 
 is then mapped to a two-wheel differential drive chassis. The primary input comes from the 
 Radiozoa behavior module, which calculates desired lateral (vx), longitudinal (vy), and rotational 
 (omega) values based on distance data from the eight ToF sensors, which feature a 1cm accuracy over 
