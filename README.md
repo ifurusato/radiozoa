@@ -21,12 +21,13 @@ functions as a closed feedback loop where the physical environment acts as the f
 allowing the robot to center itself without an IMU.
 
 Once the final target velocities for the port and starboard motors are calculated, they pass through 
-a low-level processing pipeline. This pipeline applies controller-level speed modifiers, executes 
-per-side motor trim calibration, and clamps the output within safe hardware limits. To ensure smooth 
-execution on the ESP32-S3 microcontroller, an exponential moving average is applied to the power 
-outputs to eliminate timing jitter and erratic motor changes. The entire software implementation is 
-optimized for MicroPython, using low-allocation routines and minimal thread locking to prevent runtime 
-latency spikes during garbage collection.
+to the motor PID controllers, which includes both slew limiting (acceleration/deceleration ramping) 
+and hardware min/max limiting. To ensure smooth execution on the ESP32-S3 microcontroller, an 
+exponential moving average is applied to the power outputs to eliminate timing jitter and erratic 
+motor changes. 
+
+The software implementation is optimized for MicroPython, using low-allocation routines and minimal 
+thread locking to prevent runtime latency spikes during garbage collection.
 
 The MotorController executes forward velocity kinematics, taking a desired body-level velocity vector 
 (vx, vy, omega) and mapping it directly to individual wheel velocities:
@@ -38,9 +39,6 @@ The MotorController executes forward velocity kinematics, taking a desired body-
 * **The Kinematic Mixing:** It then applies standard forward differential kinematics to split that 
     adjusted body velocity into explicit wheel speeds: the port forward target equals vy plus the 
     final rotational velocity, and the starboard forward target equals vy minus the final rotational velocity.
-
-Because this relies on a direct algebraic distribution of the target body velocities straight to the 
-wheel actuators, the pipeline falls strictly under standard forward wheel kinematics.
 
 
 # Generalised
