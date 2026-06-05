@@ -61,6 +61,34 @@ This combination of discrete GPIO control lines and sequential software addressi
 address conflict without requiring external multiplexing hardware.
 
 
+## Requirements
+
+This code was developed with MicroPython version 1.28.0, but doesn't use any syntax features found in 
+the most recent distributions, so it likely will work on older versions.
+
+
+## Status
+
+This project should currently be considered a "**Technology Preview**".
+
+The project is being exposed publicly so that those interested can follow its
+progress.
+
+
+## Support & Liability
+
+This project comes with no promise of support or acceptance of liability. Use at your own risk.
+
+
+## Copyright & License
+
+All contents (including software, documentation and images) Copyright 2025-2026 Ichiro Furusato.
+All rights reserved.
+
+Software and documentation are distributed under the MIT License, see the LICENSE file included 
+with the project.
+
+
 ## References
 
 See: [WeAct ESP32-S3-FH4R2](https://github.com/WeActStudio/WeActStudio.ESP32S3-MINI.git)
