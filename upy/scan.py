@@ -9,14 +9,13 @@ for mod in ['scan', 'i2c_scanner']:
     if mod in sys.modules:
         del sys.modules[mod]
 
-# def __init__(self, i2c_id=1, scl=None, sda=None):
+# create I2C bus ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
-        # create I2C bus ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 print('configuring I2C bus…')
-_i2c_id         = 1
-_scl            = 22
-_sda            = 21
-_i2c_baud_rate  = 400_000
+_i2c_id    = 1
+_scl       =  9  # 22 on TinyPICO
+_sda       =  8  # 21 on TinyPICO
+_i2c_baud_rate = 400_000
 _i2c = I2C(_i2c_id, scl=_scl, sda=_sda, freq=_i2c_baud_rate)
 
 scanner = I2CScanner(i2c=_i2c)
