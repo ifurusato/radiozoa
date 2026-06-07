@@ -14,13 +14,13 @@ from event import TOF_DISTANCES
 from subscriber import Subscriber
 from radiozoa_sensor import RadiozoaSensor, OUT_OF_RANGE
 from pixel import Pixel
-from cardinal import Cardinal
+from device import Device
 from colors import *
 
 class RingVisualiser(Subscriber):
     '''
     A subscriber that receives TOF_DISTANCES messages and maps each sensor
-    distance to a colour on the NeoPixel ring using the cardinal pixel positions
+    distance to a colour on the NeoPixel ring using the device pixel positions
     and RadiozoaSensor distance thresholds.
 
     :param ring:         a Pixel instance for the 24-pixel ring
@@ -32,19 +32,26 @@ class RingVisualiser(Subscriber):
         self._ring = ring
         self.add_event(TOF_DISTANCES)
         self._use_enumerated_colors = False
-        self._color = None
+        self._color = [0, 0, 0]
+        self._brightness = 1.0
         # clear ring on startup
         self._ring.off()
 
+    def set_brightness(self, multiplier):
+        self._brightness = multiplier
+
     async def process_message(self, message):
         distances = message.value
-        for cardinal in Cardinal._registry:
-            distance = distances[cardinal.id]
+        for device in Device._registry:
+            distance = distances[device.index]
             if self._use_enumerated_colors:
-                self._color = self._distance_to_enumerated_color(distance)
+                raw_color = self._distance_to_enumerated_color(distance)
             else:
-                self._color = self._distance_to_color(distance)
-            self._ring.set_color(cardinal.pixel, self._color)
+                raw_color = self._distance_to_color(distance)
+            self._color[0] = int(raw_color[0] * self._brightness)
+            self._color[1] = int(raw_color[1] * self._brightness)
+            self._color[2] = int(raw_color[2] * self._brightness)
+            self._ring.set_color(device.pixel, self._color)
 
     def _distance_to_enumerated_color(self, distance):
         if distance >= OUT_OF_RANGE:
