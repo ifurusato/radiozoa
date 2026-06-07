@@ -115,7 +115,7 @@ class RadiozoaConfig:
         devices.sort(key=lambda d: d.pixel)
         for device in devices:
             if self._ring:
-                self._ring.set_color(device.pixel - 1, COLOR_FUCHSIA)
+                self._ring.set_color(device.pixel, COLOR_FUCHSIA)
             self._log.info('configuring sensor {} at XSHUT pin {}…'.format(
                     device.label, device.xshut))
             self._set_xshut(device.index, True)
@@ -132,21 +132,21 @@ class RadiozoaConfig:
             if not found:
                 self._log.warning('sensor {} did not appear at 0x29.'.format(device.label))
                 if self._ring:
-                    self._ring.set_color(device.pixel - 1, COLOR_RED)
+                    self._ring.set_color(device.pixel, COLOR_RED)
                 continue
             try:
                 self._set_i2c_address(device, device.i2c_address)
                 self._log.info('set address for sensor {} to 0x{:02X}.'.format(
                         device.label, device.i2c_address))
                 if self._ring:
-                    self._ring.set_color(device.pixel - 1, COLOR_GREEN)
+                    self._ring.set_color(device.pixel, COLOR_GREEN)
                 _count += 1
             except Exception as e:
                 self._log.error('{} raised setting address for sensor {}: {}'.format(
                         type(e), device.label, e))
                 sys.print_exception(e)
                 if self._ring:
-                    self._ring.set_color(device.pixel - 1, COLOR_RED)
+                    self._ring.set_color(device.pixel, COLOR_RED)
             time.sleep_ms(_device_delay_ms)
 
         if _count == 8:
@@ -155,7 +155,7 @@ class RadiozoaConfig:
                 for green in range(255, -1, -5):
                     color = (0, green, 0)
                     for device in devices:
-                        self._ring.set_color(device.pixel - 1, color)
+                        self._ring.set_color(device.pixel, color)
 #               for index in range(24):
 #                   self._ring.set_color(index, COLOR_BLACK)
             self._configured = True

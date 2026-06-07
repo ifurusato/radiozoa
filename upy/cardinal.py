@@ -64,13 +64,13 @@ class Cardinal:
     def __repr__(self):
         return self._name
 
-NORTH     = Cardinal(0, 'N',  'north',      13,   0, 0.0 )
-NORTHEAST = Cardinal(1, 'NE', 'north-east', 16,  45, π * 0.25 )
-EAST      = Cardinal(2, 'E',  'east',       19,  90, π * 0.50 )
-SOUTHEAST = Cardinal(3, 'SE', 'south-east', 22, 135, π * 0.75 )
-SOUTH     = Cardinal(4, 'S',  'south',       1, 180, π )
-SOUTHWEST = Cardinal(5, 'SW', 'south-west',  4, 225, π * 1.25 )
-WEST      = Cardinal(6, 'W',  'west',        7, 270, π * 1.50 )
-NORTHWEST = Cardinal(7, 'NW', 'north-west', 10, 315, π * 1.75 )
+NORTH     = Cardinal(0, 'N',  'north',      12,   0, 0.0 )
+NORTHEAST = Cardinal(1, 'NE', 'north-east', 15,  45, π * 0.25 )
+EAST      = Cardinal(2, 'E',  'east',       18,  90, π * 0.50 )
+SOUTHEAST = Cardinal(3, 'SE', 'south-east', 21, 135, π * 0.75 )
+SOUTH     = Cardinal(4, 'S',  'south',       0, 180, π )
+SOUTHWEST = Cardinal(5, 'SW', 'south-west',  3, 225, π * 1.25 )
+WEST      = Cardinal(6, 'W',  'west',        6, 270, π * 1.50 )
+NORTHWEST = Cardinal(7, 'NW', 'north-west',  9, 315, π * 1.75 )
 
 #EOF
