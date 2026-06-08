@@ -9,8 +9,8 @@
 # created:  2026-06-04
 # modified: 2026-06-04
 
+import sys, os, gc, sys
 import time
-import os, gc, sys
 
 from colors import *
 from logger import Logger, Level
@@ -71,6 +71,7 @@ except KeyboardInterrupt:
     log.info('interrupted.')
 except Exception as e:
     log.error('{} raised: {}'.format(type(e), e))
+    sys.print_exception(e)
 finally:
     if _rros:
         _rros.close()

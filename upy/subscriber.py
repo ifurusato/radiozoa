@@ -7,10 +7,10 @@
 #
 # author:   Ichiro Furusato
 # created:  2021-03-10
-# modified: 2026-06-04
+# modified: 2026-06-08
 
 from component import Component
-from logger import Logger, Level
+from logger import Level
 
 class Subscriber(Component):
     '''
@@ -22,8 +22,7 @@ class Subscriber(Component):
     :param level:        the logging level
     '''
     def __init__(self, name, message_bus, level=Level.INFO):
-        Component.__init__(self, name)
-        self._log         = Logger('sub:{}'.format(name), level)
+        Component.__init__(self, name if ':' in name else 'sub:{}'.format(name))
         self._message_bus = message_bus
         self._events      = []
         message_bus.add_subscriber(self)

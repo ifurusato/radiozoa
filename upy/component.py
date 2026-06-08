@@ -9,6 +9,8 @@
 # created:  2021-06-29
 # modified: 2026-06-04
 
+from logger import Logger, Level
+
 class Component:
     '''
     A basic component providing enabled, suppressed and closed state flags.
@@ -18,10 +20,11 @@ class Component:
     :param suppressed: initial suppressed state (default False)
     :param enabled:    initial enabled state (default False)
     '''
-    def __init__(self, name, suppressed=False, enabled=False):
+    def __init__(self, name, suppressed=False, enabled=False, level=Level.INFO):
         if name is None:
             raise ValueError('null name argument.')
         self._name       = name
+        self._log        = Logger(name, level)
         self._suppressed = suppressed
         self._enabled    = enabled
         self._closed     = False
@@ -62,19 +65,28 @@ class Component:
     def enable(self):
         if not self._closed:
             self._enabled = True
+            self._log.info('enabled.')
+        else:
+            self._log.warn('already closed.')
+
+    def disable(self):
+        self._log.info('disabled.')
+        self._enabled = False
 
     def suppress(self):
         self._suppressed = True
+        self._log.info('suppressed.')
 
     def release(self):
         self._suppressed = False
-
-    def disable(self):
-        self._enabled = False
+        self._log.info('released.')
 
     def close(self):
         if not self._closed:
             self._enabled = False
             self._closed  = True
+            self._log.info('closed.')
+        else:
+            self._log.warn('already closed.')
 
 #EOF

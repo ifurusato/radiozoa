@@ -12,12 +12,15 @@
 from machine import I2C
 
 import asyncio
+from colorama import Fore, Style
 from logger import Logger, Level
 from message_bus import MessageBus
 from radiozoa_config import RadiozoaConfig
 from radiozoa_sensor import RadiozoaSensor
 from tof_publisher import ToFPublisher
 from tof_subscriber import TofSubscriber
+from motor_controller import MotorController
+from radiozoa_behaviour import RadiozoaBehaviour
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class RROS:
@@ -49,40 +52,45 @@ class RROS:
         self._subscriber = None
         # configure sensor addresses synchronously before async loop starts
         self._log.info('configuring sensors…')
-        self._config = RadiozoaConfig(i2c=self._i2c, ring=ring, level=level)
+        self._config = RadiozoaConfig(i2c=self._i2c, ring=self._ring, level=self._level)
         self._config.configure(self.continue_init)
 
     def continue_init(self):
         if not self._config.configured:
             raise RuntimeError('sensor configuration failed.')
         self._log.info('configuring radiozoa sensor…')
-        # create and start ranging
         self._sensor = RadiozoaSensor(i2c=self._i2c, level=self._level)
         self._sensor.start_ranging()
-        # publisher and subscriber
+        self._log.info('creating motor controller…')
+        self._motor_controller = MotorController(ring=self._ring, level=self._level)
         self._log.info('creating publisher…')
-        self._publisher  = ToFPublisher(self._sensor, self._message_bus, level=self._level)
-        self._log.info('creating subscriber…')
-        self._subscriber = TofSubscriber(self._message_bus, level=self._level)
+        self._publisher = ToFPublisher(self._sensor, self._message_bus, level=self._level)
+        self._log.info('creating behaviour…')
+        self._behaviour = RadiozoaBehaviour(self._message_bus, self._motor_controller, level=self._level)
         if self._ring is not None:
             from ring_visualiser import RingVisualiser
             self._log.info('creating ring visualiser…')
             self._visualiser = RingVisualiser(self._ring, self._message_bus, level=self._level)
+#           self._visualiser.set_brightness(0.0)
+#           self._visualiser.set_brighten(True)
         else:
             self._visualiser = None
-        self._log.info('ready.')
+        self._log.info(Fore.GREEN + 'ready.' + Style.RESET_ALL)
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     async def run(self):
         self._message_bus.enable()
         self._publisher.enable()
-        self._subscriber.enable()
+        self._behaviour.enable()
+        self._motor_controller.enable()
         if self._visualiser is not None:
+            self._log.info(Fore.MAGENTA + 'enabling ring visualiser…' + Style.RESET_ALL)
             self._visualiser.enable()
         asyncio.create_task(self._message_bus.consume_loop())
         asyncio.create_task(self._publisher.poll_loop())
-        self._log.info('running…')
+        asyncio.create_task(self._motor_controller._run())
+        self._log.info(Fore.MAGENTA + 'running…' + Style.RESET_ALL)
         while True:
             await asyncio.sleep_ms(100)
 
@@ -90,10 +98,15 @@ class RROS:
         asyncio.run(self.run())
 
     def close(self):
-        if self._visualiser is not None:
+        if self._visualiser:
             self._visualiser.close()
-        self._publisher.close()
-        self._subscriber.close()
-        self._message_bus.close()
+        if self._motor_controller:
+            self._motor_controller.close()
+        if self._publisher:
+            self._publisher.close()
+        if self._subscriber:
+            self._subscriber.close()
+        if self._message_bus:
+            self._message_bus.close()
 
 #EOF

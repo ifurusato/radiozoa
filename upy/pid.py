@@ -21,7 +21,8 @@ class PID:
     :param min_output:  minimum output (default -1.0)
     :param max_output:  maximum output (default  1.0)
     '''
-    def __init__(self, kp=1.0, ki=0.0, kd=0.0, min_output=-1.0, max_output=1.0):
+    def __init__(self, name=None, kp=1.0, ki=0.0, kd=0.0, min_output=-1.0, max_output=1.0):
+        self._name       = name
         self._kp         = kp
         self._ki         = ki
         self._kd         = kd

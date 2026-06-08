@@ -11,7 +11,7 @@
 
 import asyncio
 
-from logger import Logger, Level
+from logger import Level
 from component import Component
 from motor import Motor
 from pid import PID
@@ -38,14 +38,15 @@ class MotorController(Component):
     NAME = 'motor-ctrl'
 
     # GPIO pin assignments
-    _IN1   = 14
-    _IN2   = 12
-    _IN3   =  6
-    _IN4   =  4
-    _ENC1A = 16
-    _ENC1B = 17
-    _ENC2A =  2
-    _ENC2B =  1
+    #        UM  WeACT
+    _IN1   = 36  # 14
+    _IN2   =  7  # 12
+    _IN3   =  0  #  6
+    _IN4   =  5  #  4
+    _ENC1A = 11  # 16
+    _ENC1B = 10  # 17
+    _ENC2A =  9  #  2
+    _ENC2B =  8  #  1
 
     # ring pixels for motor speed visualisation: free pixels between cardinal positions
     _PORT_PIXEL = 5   # between SW(3) and W(6)
@@ -56,14 +57,13 @@ class MotorController(Component):
 
     def __init__(self, ring=None, level=Level.INFO):
         Component.__init__(self, MotorController.NAME)
-        self._log  = Logger(MotorController.NAME, level)
         self._ring = ring
         # motors: port uses IN1/IN2 and ENC1; stbd uses IN3/IN4 and ENC2
         self._motor_port = Motor('port', self._IN1, self._IN2, self._ENC1A, self._ENC1B, level=level)
         self._motor_stbd = Motor('stbd', self._IN3, self._IN4, self._ENC2A, self._ENC2B, level=level)
         # PID controllers — gains are initial estimates pending tuning with hardware
-        self._pid_port   = PID('port', kp=0.8, ki=0.1, kd=0.05, level=level)
-        self._pid_stbd   = PID('stbd', kp=0.8, ki=0.1, kd=0.05, level=level)
+        self._pid_port = PID('port', kp=0.8, ki=0.1, kd=0.05)
+        self._pid_stbd = PID('stbd', kp=0.8, ki=0.1, kd=0.05)
         # intent vectors registry: name → (vx, vy, omega, priority)
         self._intent_vectors = {}
         # lateral gain: scales vx contribution into omega correction

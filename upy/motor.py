@@ -7,11 +7,11 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-06-07
+# modified: 2026-06-08
 
 from machine import Pin, PWM
 
-from logger import Logger, Level
+from logger import Level
 from component import Component
 
 class Motor(Component):
@@ -33,7 +33,6 @@ class Motor(Component):
     '''
     def __init__(self, name, in1_pin, in2_pin, enc_a_pin, enc_b_pin, freq=20000, level=Level.INFO):
         Component.__init__(self, 'motor:{}'.format(name))
-        self._log   = Logger('motor:{}'.format(name), level)
         self._pwm1  = PWM(Pin(in1_pin),  freq=freq, duty_u16=0)
         self._pwm2  = PWM(Pin(in2_pin),  freq=freq, duty_u16=0)
         self._enc_a = Pin(enc_a_pin, Pin.IN, Pin.PULL_UP)

@@ -9,7 +9,7 @@
 # created:  2026-06-07
 # modified: 2026-06-08
 
-from logger import Logger, Level
+from logger import Level
 from subscriber import Subscriber
 
 class Behaviour(Subscriber):
@@ -23,7 +23,7 @@ class Behaviour(Subscriber):
     :param level:        the logging level
     '''
     def __init__(self, name, message_bus, level=Level.INFO):
-        Subscriber.__init__(self, name, message_bus, level)
+        Subscriber.__init__(self, name if ':' in name else 'beh:{}'.format(name), message_bus, level)
         self._intent_vector = (0.0, 0.0, 0.0)
         self._priority      = 0.0
 

@@ -64,15 +64,18 @@ class RadiozoaBehaviour(Behaviour):
     _PRIORITY_MIN = 0.3   # priority when no obstacles in range
     _PRIORITY_MAX = 1.0   # priority at closest obstacle threshold
 
-    def __init__(self, message_bus, level=Level.INFO):
+    def __init__(self, message_bus, motor_controller=None, level=Level.INFO):
         Behaviour.__init__(self, 'radiozoa', message_bus, level)
+        self._motor_controller = motor_controller
         self._priority = self._PRIORITY_MIN
         self.add_event(TOF_DISTANCES)
         self._log.info('ready.')
 
     async def process_message(self, message):
         distances = message.value
-        self._intent_vector = self._process(distances)
+        vx, vy, omega = self._process(distances)
+        self._intent_vector = (vx, vy, omega)
+        self._motor_controller.set_intent_vector('radiozoa', vx, vy, omega, self._priority)
 
     def _process(self, distances):
         '''

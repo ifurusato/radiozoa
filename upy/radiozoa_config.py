@@ -115,7 +115,7 @@ class RadiozoaConfig:
         devices.sort(key=lambda d: d.pixel)
         for device in devices:
             if self._ring:
-                self._ring.set_color(device.pixel, COLOR_FUCHSIA)
+                self._ring.set_color(device.pixel, COLOR_DEEP_FUCHSIA)
             self._log.info('configuring sensor {} at XSHUT pin {}…'.format(
                     device.label, device.xshut))
             self._set_xshut(device.index, True)

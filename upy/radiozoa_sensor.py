@@ -13,6 +13,7 @@ import sys
 import time
 from machine import I2C
 
+from colorama import Fore, Style
 from logger import Logger, Level
 from cardinal import Cardinal
 from device import Device
@@ -55,8 +56,7 @@ class RadiozoaSensor:
         '''
         for dev in Device.all():
             cardinal = Cardinal._registry[dev.index]
-            self._log.info('creating sensor {} at 0x{:02X}…'.format(
-                    cardinal.name, dev.i2c_address))
+            self._log.info('creating sensor {} at 0x{:02X}…'.format(cardinal.name, dev.i2c_address))
             try:
                 if dev.impl == 'VL53L1X':
 #                   _debug = dev.index == 6 # set debug
@@ -76,7 +76,7 @@ class RadiozoaSensor:
         Starts ranging on all sensors.
         '''
         if not self._is_ranging:
-            self._log.info('starting ranging…')
+            self._log.info(Fore.MAGENTA + 'starting ranging…' + Style.RESET_ALL)
             for cardinal, sensor in self._sensors.items():
                 if sensor:
                     try:
@@ -96,7 +96,7 @@ class RadiozoaSensor:
         Stops ranging on all sensors.
         '''
         if self._is_ranging:
-            self._log.info('stopping ranging…')
+            self._log.info(Fore.MAGENTA + 'stopping ranging…' + Style.RESET_ALL)
             for cardinal, sensor in self._sensors.items():
                 if sensor:
                     try:
@@ -115,6 +115,7 @@ class RadiozoaSensor:
         Returns the distance reading in mm from the sensor at the given cardinal,
         or OUT_OF_RANGE on error.
         '''
+        print('get_distance')
         sensor = self._sensors.get(cardinal)
         if sensor:
             try:
@@ -132,6 +133,7 @@ class RadiozoaSensor:
         Returns a tuple of distance readings in mm for all eight sensors in
         Cardinal registry order, substituting OUT_OF_RANGE on any error.
         '''
+        print('get_distances')
         distances = []
         for cardinal in Cardinal._registry:
             sensor = self._sensors.get(cardinal)
