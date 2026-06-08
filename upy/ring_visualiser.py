@@ -32,6 +32,7 @@ class RingVisualiser(Subscriber):
         self._ring = ring
         self.add_event(TOF_DISTANCES)
         self._use_enumerated_colors = False
+        self._color_at_limit = 0.833 # 0.75 indigo; 0.833 magenta
         self._color = [0, 0, 0]
         self._brightness      = 1.0
         self._brightness_step = 0.01
@@ -85,7 +86,8 @@ class RingVisualiser(Subscriber):
         if distance >= OUT_OF_RANGE:
             return COLOR_BLACK
         d = min(max(distance, 0), 4000)
-        hue = (d / 4000) * 0.75  # 0.0=red through to 0.75=indigo
+        hue = (d / 4000) * self._color_at_limit # 0.0=red through to 0.75=indigo
+        # 0.0=red through to limit
         return Pixel.hsv_to_rgb(hue)
 
     def close(self):

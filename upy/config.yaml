@@ -17,7 +17,7 @@ rros:
         pin_enc1B:      null      # 17
         pin_enc2A:      null      #  2
         pin_enc2B:      null      #  1
-        pin_port_pix1:     5
+        pin_port_pix1:     5      # visualise pixel pins (optional)
         pin_port_pix2:     7
         pin_stbd_pix1:    17
         pin_stbd_pix2:    19

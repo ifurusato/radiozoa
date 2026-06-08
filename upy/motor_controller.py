@@ -43,10 +43,12 @@ class MotorController(Component):
         Component.__init__(self, MotorController.NAME)
         self._ring       = ring
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._visualise_hue = False # permit hue to be set
+        self._hue_angle  = 0.875 # red=0.0; orange=0.083; magenta=0.833; fuchsia=0.875, etc.
         if config is None:
             raise TypeError('no configuration provided.')
         _cfg = config['rros']['motor_controller']
-        self._period_ms    = _cfg['period_ms']    # control loop period in ms (20Hz)
+        self._period_ms  = _cfg['period_ms']    # control loop period in ms (20Hz)
         # ring pixels for motor speed visualisation: free pixels between cardinal positions
         self._pin_port_pix1 = _cfg['pin_port_pix1'] # 5
         self._pin_port_pix2 = _cfg['pin_port_pix2'] # 7
@@ -186,23 +188,27 @@ class MotorController(Component):
 
         # ring visualisation: hue encodes direction/type, value encodes power magnitude
         if self._ring:
-#           n_port = int(abs(pwr_port) * 255)
-#           n_stbd = int(abs(pwr_stbd) * 255)
-#           self._ring.set_color(self._pin_port_pix1, (0, n_port, n_port))
-#           self._ring.set_color(self._pin_port_pix2, (0, n_port, n_port))
-#           self._ring.set_color(self._pin_stbd_pix1, (0, n_stbd, n_stbd))
-#           self._ring.set_color(self._pin_stbd_pix2, (0, n_stbd, n_stbd))
-
-            # cyan is at 180 degrees (180 / 360 = 0.5)
-            hue_angle = 0.875  # red=0.0; orange=0.083; magenta=0.833; fuchsia=0.875, etc.
-            v_port = abs(pwr_port)
-            v_stbd = abs(pwr_stbd)
-            rgb_port = Pixel.hsv_to_rgb(hue_angle, 1.0, v_port)
-            rgb_stbd = Pixel.hsv_to_rgb(hue_angle, 1.0, v_stbd)
-            self._ring.set_color(self._pin_port_pix1, rgb_port)
-            self._ring.set_color(self._pin_port_pix2, rgb_port)
-            self._ring.set_color(self._pin_stbd_pix1, rgb_stbd)
-            self._ring.set_color(self._pin_stbd_pix2, rgb_stbd)
+            if self._visualise_hue:
+                # cyan is at 180 degrees (180 / 360 = 0.5)
+                v_port = abs(pwr_port)
+                v_stbd = abs(pwr_stbd)
+                rgb_port = Pixel.hsv_to_rgb(self._hue_angle, 1.0, v_port)
+                rgb_stbd = Pixel.hsv_to_rgb(self._hue_angle, 1.0, v_stbd)
+                self._ring.set_color(self._pin_port_pix1, rgb_port)
+                self._ring.set_color(self._pin_port_pix2, rgb_port)
+                self._ring.set_color(self._pin_stbd_pix1, rgb_stbd)
+                self._ring.set_color(self._pin_stbd_pix2, rgb_stbd)
+            else:
+                n_port = int(abs(pwr_port) * 255)
+                n_stbd = int(abs(pwr_stbd) * 255)
+                if self._pin_port_pix1:
+                    self._ring.set_color(self._pin_port_pix1, (n_port, n_port, n_port))
+                if self._pin_port_pix2:
+                    self._ring.set_color(self._pin_port_pix2, (n_port, n_port, n_port))
+                if self._pin_stbd_pix1:
+                    self._ring.set_color(self._pin_stbd_pix1, (n_stbd, n_stbd, n_stbd))
+                if self._pin_stbd_pix2:
+                    self._ring.set_color(self._pin_stbd_pix2, (n_stbd, n_stbd, n_stbd))
 
     async def _run(self):
         '''
