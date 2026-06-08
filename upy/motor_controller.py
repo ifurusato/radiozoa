@@ -15,6 +15,7 @@ from colorama import Fore, Style
 
 from logger import Level
 from component import Component
+from pixel import Pixel
 from motor import Motor
 from pid import PID
 
@@ -182,14 +183,26 @@ class MotorController(Component):
             pwr_stbd = v_stbd
         self._motor_port.set_power(pwr_port)
         self._motor_stbd.set_power(pwr_stbd)
-        # ring visualisation: cyan brightness encodes power magnitude
+
+        # ring visualisation: hue encodes direction/type, value encodes power magnitude
         if self._ring:
-            n_port = int(abs(pwr_port) * 255)
-            n_stbd = int(abs(pwr_stbd) * 255)
-            self._ring.set_color(self._pin_port_pix1, (0, n_port, n_port))
-            self._ring.set_color(self._pin_port_pix2, (0, n_port, n_port))
-            self._ring.set_color(self._pin_stbd_pix1, (0, n_stbd, n_stbd))
-            self._ring.set_color(self._pin_stbd_pix2, (0, n_stbd, n_stbd))
+#           n_port = int(abs(pwr_port) * 255)
+#           n_stbd = int(abs(pwr_stbd) * 255)
+#           self._ring.set_color(self._pin_port_pix1, (0, n_port, n_port))
+#           self._ring.set_color(self._pin_port_pix2, (0, n_port, n_port))
+#           self._ring.set_color(self._pin_stbd_pix1, (0, n_stbd, n_stbd))
+#           self._ring.set_color(self._pin_stbd_pix2, (0, n_stbd, n_stbd))
+
+            # cyan is at 180 degrees (180 / 360 = 0.5)
+            hue_angle = 0.875  # red=0.0; orange=0.083; magenta=0.833; fuchsia=0.875, etc.
+            v_port = abs(pwr_port)
+            v_stbd = abs(pwr_stbd)
+            rgb_port = Pixel.hsv_to_rgb(hue_angle, 1.0, v_port)
+            rgb_stbd = Pixel.hsv_to_rgb(hue_angle, 1.0, v_stbd)
+            self._ring.set_color(self._pin_port_pix1, rgb_port)
+            self._ring.set_color(self._pin_port_pix2, rgb_port)
+            self._ring.set_color(self._pin_stbd_pix1, rgb_stbd)
+            self._ring.set_color(self._pin_stbd_pix2, rgb_stbd)
 
     async def _run(self):
         '''

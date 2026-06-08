@@ -72,7 +72,7 @@ class RadiozoaConfig:
                 self._configured = True
             else:
                 self._log.info(Style.BRIGHT + 'configuration checked: address reassignment required.' + Style.RESET_ALL)
-        else:
+        if not self._configured:
             self._shutdown_all_sensors()
             self._configure_sensor_addresses()
             self._log.info('all sensor addresses configured.')
