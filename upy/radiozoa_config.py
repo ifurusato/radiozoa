@@ -44,7 +44,8 @@ class RadiozoaConfig:
         self._default_i2c_address = 0x29
         self._configured = False
         _cfg = self._config['rros']['radiozoa']
-        self._check_configured = _cfg['check_configuration']
+        self._check_configured = _cfg['check_configured']
+        self._log.info(Fore.WHITE + 'check configured: {}'.format(self._check_configured) + Style.RESET_ALL)
         self._ring = ring
         self._xshut_pins = {}
         self._setup_pins()
@@ -58,17 +59,23 @@ class RadiozoaConfig:
         return self._configured
 
     def configure(self, callback):
-        # check if all sensors are already at their target addresses
+        '''
+        Check if all sensors are already at their target addresses. If the flag is set
+        True we don't bother to reassign the I2C addresses. Once finished we execute
+        the callback to continue application initialisation.
+        '''
         if self._check_configured:
             self._i2c_scanner.scan()
             _expected = [device.i2c_address for device in Device.all() if device.impl is not None]
             if all(self._i2c_scanner.has_hex_address(addr) for addr in _expected):
                 self._log.info('all sensors already configured, skipping address assignment.')
                 self._configured = True
-                return
-        self._shutdown_all_sensors()
-        self._configure_sensor_addresses()
-        self._log.info('all sensor addresses configured.')
+            else:
+                self._log.info(Style.BRIGHT + 'configuration checked: address reassignment required.' + Style.RESET_ALL)
+        else:
+            self._shutdown_all_sensors()
+            self._configure_sensor_addresses()
+            self._log.info('all sensor addresses configured.')
         if callback is not None:
             callback()
 

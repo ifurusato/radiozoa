@@ -47,8 +47,10 @@ class MotorController(Component):
         _cfg = config['rros']['motor_controller']
         self._period_ms    = _cfg['period_ms']    # control loop period in ms (20Hz)
         # ring pixels for motor speed visualisation: free pixels between cardinal positions
-        self._pin_port_pix = _cfg['pin_port_pix'] # 5
-        self._pin_stbd_pix = _cfg['pin_stbd_pix'] # 19
+        self._pin_port_pix1 = _cfg['pin_port_pix1'] # 5
+        self._pin_port_pix2 = _cfg['pin_port_pix2'] # 7
+        self._pin_stbd_pix1 = _cfg['pin_stbd_pix1'] # 17
+        self._pin_stbd_pix2 = _cfg['pin_stbd_pix2'] # 19
         # motor pins
         self._pin_in1    = _cfg['pin_in1'] # 14 (WeAct ESP32)
         self._pin_in2    = _cfg['pin_in2'] # 12
@@ -184,8 +186,10 @@ class MotorController(Component):
         if self._ring:
             n_port = int(abs(pwr_port) * 255)
             n_stbd = int(abs(pwr_stbd) * 255)
-            self._ring.set_color(self._pin_port_pix, (0, n_port, n_port))
-            self._ring.set_color(self._pin_stbd_pix, (0, n_stbd, n_stbd))
+            self._ring.set_color(self._pin_port_pix1, (0, n_port, n_port))
+            self._ring.set_color(self._pin_port_pix2, (0, n_port, n_port))
+            self._ring.set_color(self._pin_stbd_pix1, (0, n_stbd, n_stbd))
+            self._ring.set_color(self._pin_stbd_pix2, (0, n_stbd, n_stbd))
 
     async def _run(self):
         '''
@@ -233,8 +237,11 @@ class MotorController(Component):
             self._motor_port.close()
             self._motor_stbd.close()
             if self._ring:
-                self._ring.set_color(self._pin_port_pix, (0, 0, 0))
-                self._ring.set_color(self._pin_stbd_pix, (0, 0, 0))
+                # clear pixels
+                self._ring.set_color(self._pin_port_pix1, (0, 0, 0))
+                self._ring.set_color(self._pin_port_pix2, (0, 0, 0))
+                self._ring.set_color(self._pin_stbd_pix1, (0, 0, 0))
+                self._ring.set_color(self._pin_stbd_pix2, (0, 0, 0))
             Component.close(self)
             self._log.info('closed.')
 
