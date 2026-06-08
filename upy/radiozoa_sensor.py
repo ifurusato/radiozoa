@@ -15,7 +15,6 @@ from machine import I2C
 
 from colorama import Fore, Style
 from logger import Logger, Level
-from cardinal import Cardinal
 from device import Device
 from vl53l1x import VL53L1X
 
@@ -55,19 +54,19 @@ class RadiozoaSensor:
         Creates VL53L1X instances for all eight sensors using the Device pseudo-enum.
         '''
         for dev in Device.all():
-            cardinal = Cardinal._registry[dev.index]
-            self._log.info('creating sensor {} at 0x{:02X}…'.format(cardinal.name, dev.i2c_address))
+            device = Device._registry[dev.index]
+            self._log.info('creating sensor {} at 0x{:02X}…'.format(device.label, dev.i2c_address))
             try:
                 if dev.impl == 'VL53L1X':
 #                   _debug = dev.index == 6 # set debug
                     sensor = VL53L1X(self._i2c, address=dev.i2c_address) #, debug=_debug)
                 else:
                     sensor = None
-                self._sensors[cardinal] = sensor
-                self._log.info('sensor {} created.'.format(cardinal.name))
+                self._sensors[device] = sensor
+                self._log.info('sensor {} created.'.format(device.label))
             except Exception as e:
                 self._log.error('{} raised creating sensor {}: {}'.format(
-                        type(e), cardinal.name, e))
+                        type(e), device.label, e))
                 sys.print_exception(e)
                 raise
 
@@ -76,15 +75,15 @@ class RadiozoaSensor:
         Starts ranging on all sensors.
         '''
         if not self._is_ranging:
-            self._log.info(Fore.MAGENTA + 'starting ranging…' + Style.RESET_ALL)
-            for cardinal, sensor in self._sensors.items():
+            self._log.info('start ranging…')
+            for device, sensor in self._sensors.items():
                 if sensor:
                     try:
                         sensor.start()
-                        self._log.info('sensor {} ranging started.'.format(cardinal.name))
+                        self._log.info('sensor {} ranging started.'.format(device.label))
                     except Exception as e:
                         self._log.error('{} raised starting sensor {}: {}'.format(
-                                type(e), cardinal.name, e))
+                                type(e), device.label, e))
             self._is_ranging = True
             time.sleep_ms(100)
             self._log.info('ranging started.')
@@ -96,53 +95,51 @@ class RadiozoaSensor:
         Stops ranging on all sensors.
         '''
         if self._is_ranging:
-            self._log.info(Fore.MAGENTA + 'stopping ranging…' + Style.RESET_ALL)
-            for cardinal, sensor in self._sensors.items():
+            self._log.info('stop ranging…')
+            for device, sensor in self._sensors.items():
                 if sensor:
                     try:
                         sensor.stop()
-                        self._log.info('sensor {} ranging stopped.'.format(cardinal.name))
+                        self._log.info('sensor {} ranging stopped.'.format(device.label))
                     except Exception as e:
                         self._log.error('{} raised stopping sensor {}: {}'.format(
-                                type(e), cardinal.name, e))
+                                type(e), device.label, e))
             self._is_ranging = False
             self._log.info('ranging stopped.')
         else:
             self._log.warning('not currently ranging.')
 
-    def get_distance(self, cardinal):
+    def get_distance(self, device):
         '''
-        Returns the distance reading in mm from the sensor at the given cardinal,
+        Returns the distance reading in mm from the sensor at the given device,
         or OUT_OF_RANGE on error.
         '''
-        print('get_distance')
-        sensor = self._sensors.get(cardinal)
+        sensor = self._sensors.get(device)
         if sensor:
             try:
                 return max(0, sensor.read() - self._distance_offset)
             except Exception as e:
                 self._log.error('{} raised reading sensor {}: {}'.format(
-                        type(e), cardinal.name, e))
+                        type(e), device.label, e))
                 return OUT_OF_RANGE
         else:
-            self._log.warning('no sensor for cardinal {}.'.format(cardinal.name))
+            self._log.warning('no sensor for device {}.'.format(device.label))
             return OUT_OF_RANGE
 
     def get_distances(self):
         '''
-        Returns a tuple of distance readings in mm for all eight sensors in
-        Cardinal registry order, substituting OUT_OF_RANGE on any error.
+        Returns a tuple of distance readings in mm for all eight sensors
+        in device registry order, substituting OUT_OF_RANGE on any error.
         '''
-        print('get_distances')
         distances = []
-        for cardinal in Cardinal._registry:
-            sensor = self._sensors.get(cardinal)
+        for device in Device._registry:
+            sensor = self._sensors.get(device)
             if sensor:
                 try:
                     distances.append(max(0, sensor.read() - self._distance_offset))
                 except Exception as e:
                     self._log.error('{} reading sensor {}: {}'.format(
-                            type(e), cardinal.name, e))
+                            type(e), device.label, e))
                     distances.append(OUT_OF_RANGE)
             else:
                 distances.append(OUT_OF_RANGE)

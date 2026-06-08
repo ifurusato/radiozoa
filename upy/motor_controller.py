@@ -11,12 +11,15 @@
 
 import asyncio
 
+from colorama import Fore, Style
+
 from logger import Level
 from component import Component
 from motor import Motor
 from pid import PID
 
 class MotorController(Component):
+    NAME = 'motor-ctrl'
     '''
     Owns the two drive motors (port and starboard) and their PID controllers.
     Blends registered intent vectors from Behaviours by priority weighting,
@@ -35,32 +38,34 @@ class MotorController(Component):
     :param ring:   optional NeoPixel ring for motor speed visualisation
     :param level:  the logging level
     '''
-    NAME = 'motor-ctrl'
-
-    # GPIO pin assignments
-    #        UM  WeACT
-    _IN1   = 36  # 14
-    _IN2   =  7  # 12
-    _IN3   =  0  #  6
-    _IN4   =  5  #  4
-    _ENC1A = 11  # 16
-    _ENC1B = 10  # 17
-    _ENC2A =  9  #  2
-    _ENC2B =  8  #  1
-
-    # ring pixels for motor speed visualisation: free pixels between cardinal positions
-    _PORT_PIXEL = 5   # between SW(3) and W(6)
-    _STBD_PIXEL = 19  # between E(18) and SE(21)
-
-    # control loop period in ms (20Hz)
-    _PERIOD_MS  = 50
-
-    def __init__(self, ring=None, level=Level.INFO):
+    def __init__(self, config=None, ring=None, level=Level.INFO):
         Component.__init__(self, MotorController.NAME)
-        self._ring = ring
+        self._ring       = ring
+        # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        if config is None:
+            raise TypeError('no configuration provided.')
+        _cfg = config['rros']['motor_controller']
+        self._period_ms    = _cfg['period_ms']    # control loop period in ms (20Hz)
+        # ring pixels for motor speed visualisation: free pixels between cardinal positions
+        self._pin_port_pix = _cfg['pin_port_pix'] # 5
+        self._pin_stbd_pix = _cfg['pin_stbd_pix'] # 19
+        # motor pins
+        self._pin_in1    = _cfg['pin_in1'] # 14 (WeAct ESP32)
+        self._pin_in2    = _cfg['pin_in2'] # 12
+        self._pin_in3    = _cfg['pin_in3'] #  6
+        self._pin_in4    = _cfg['pin_in4'] #  4
+        # IN1: 43; IN2: 5; IN3: 21; IN4: 0
+        self._log.info(Fore.WHITE + 'IN1: {}; IN2: {}; IN3: {}; IN4: {}'.format(
+            self._pin_in1, self._pin_in2, self._pin_in3, self._pin_in4) + Style.RESET_ALL)
+        self._pin_enc1a  = _cfg['pin_enc1A'] # 16 (WeAct ESP32)
+        self._pin_enc1b  = _cfg['pin_enc1B'] # 17
+        self._pin_enc2a  = _cfg['pin_enc2A'] #  2
+        self._pin_enc2b  = _cfg['pin_enc2B'] #  1
+        self._log.info(Fore.WHITE + 'ENC1A: {}; ENC1B: {}; ENC2A: {}; ENC2B: {}'.format(
+            self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b) + Style.RESET_ALL)
         # motors: port uses IN1/IN2 and ENC1; stbd uses IN3/IN4 and ENC2
-        self._motor_port = Motor('port', self._IN1, self._IN2, self._ENC1A, self._ENC1B, level=level)
-        self._motor_stbd = Motor('stbd', self._IN3, self._IN4, self._ENC2A, self._ENC2B, level=level)
+        self._motor_port = Motor('port', self._pin_in1, self._pin_in2, self._pin_enc1a, self._pin_enc1b, level=level)
+        self._motor_stbd = Motor('stbd', self._pin_in3, self._pin_in4, self._pin_enc2a, self._pin_enc2b, level=level)
         # PID controllers — gains are initial estimates pending tuning with hardware
         self._pid_port = PID('port', kp=0.8, ki=0.1, kd=0.05)
         self._pid_stbd = PID('stbd', kp=0.8, ki=0.1, kd=0.05)
@@ -179,18 +184,18 @@ class MotorController(Component):
         if self._ring:
             n_port = int(abs(pwr_port) * 255)
             n_stbd = int(abs(pwr_stbd) * 255)
-            self._ring.set_color(self._PORT_PIXEL, (0, n_port, n_port))
-            self._ring.set_color(self._STBD_PIXEL, (0, n_stbd, n_stbd))
+            self._ring.set_color(self._pin_port_pix, (0, n_port, n_port))
+            self._ring.set_color(self._pin_stbd_pix, (0, n_stbd, n_stbd))
 
     async def _run(self):
         '''
         main asyncio coroutine, to be added as a task by RROS.
-        runs _tick() at _PERIOD_MS intervals while enabled and not suppressed.
+        runs _tick() at period_ms intervals while enabled and not suppressed.
         '''
         while not self._stop:
             if self.enabled and not self.suppressed:
                 self._tick()
-            await asyncio.sleep_ms(self._PERIOD_MS)
+            await asyncio.sleep_ms(self._period_ms)
 
     def brake(self):
         '''
@@ -228,8 +233,8 @@ class MotorController(Component):
             self._motor_port.close()
             self._motor_stbd.close()
             if self._ring:
-                self._ring.set_color(self._PORT_PIXEL, (0, 0, 0))
-                self._ring.set_color(self._STBD_PIXEL, (0, 0, 0))
+                self._ring.set_color(self._pin_port_pix, (0, 0, 0))
+                self._ring.set_color(self._pin_stbd_pix, (0, 0, 0))
             Component.close(self)
             self._log.info('closed.')
 

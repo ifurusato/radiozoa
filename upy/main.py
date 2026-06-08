@@ -58,6 +58,7 @@ else: # otherwise TinyPICO
 
 _rros = None
 try:
+
     pre_blink()
     print_sysinfo()
 

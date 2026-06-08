@@ -16,7 +16,7 @@ from event import TOF_DISTANCES
 from behaviour import Behaviour
 from radiozoa_sensor import OUT_OF_RANGE
 
-# sensor index order matches Cardinal registry: N=0, NE=1, E=2, SE=3, S=4, SW=5, W=6, NW=7
+# sensor index order matches device registry: N=0, NE=1, E=2, SE=3, S=4, SW=5, W=6, NW=7
 # corresponding angles (degrees):              0,   45,   90,  135,  180,  225,  270,  315
 
 _R2 = sqrt(2.0) / 2.0   # sin/cos of 45° ≈ 0.7071

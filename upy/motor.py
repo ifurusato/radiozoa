@@ -23,6 +23,9 @@ class Motor(Component):
     Power is expressed as a float in [-1.0, 1.0]; positive is forward, negative reverse.
     The velocity property is stubbed as 0.0 pending encoder calibration with hardware.
 
+    The encoder pins are optional. If either is not supplied this will operate the motor
+    in open loop mode with no feedback.
+
     :param name:       identifier: 'port' or 'stbd'
     :param in1_pin:    GPIO number for DRV8833 IN1 (forward PWM)
     :param in2_pin:    GPIO number for DRV8833 IN2 (reverse PWM)
@@ -31,16 +34,19 @@ class Motor(Component):
     :param freq:       PWM frequency in Hz (default 20000)
     :param level:      the logging level
     '''
-    def __init__(self, name, in1_pin, in2_pin, enc_a_pin, enc_b_pin, freq=20000, level=Level.INFO):
+    def __init__(self, name, in1_pin, in2_pin, enc_a_pin=None, enc_b_pin=None, freq=20000, level=Level.INFO):
         Component.__init__(self, 'motor:{}'.format(name))
+        self._steps = 0
         self._pwm1  = PWM(Pin(in1_pin),  freq=freq, duty_u16=0)
         self._pwm2  = PWM(Pin(in2_pin),  freq=freq, duty_u16=0)
-        self._enc_a = Pin(enc_a_pin, Pin.IN, Pin.PULL_UP)
-        self._enc_b = Pin(enc_b_pin, Pin.IN, Pin.PULL_UP)
-        self._steps = 0
-        self._enc_a.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=self._enc_irq)
-        self._log.info('in1={}, in2={}, encA={}, encB={}; {}Hz'.format(
-                in1_pin, in2_pin, enc_a_pin, enc_b_pin, freq))
+        self._enc_a = None if enc_a_pin is None else Pin(enc_a_pin, Pin.IN, Pin.PULL_UP)
+        self._enc_b = None if enc_b_pin is None else Pin(enc_b_pin, Pin.IN, Pin.PULL_UP)
+        if self._enc_a and self._enc_b:
+            self._enc_a.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING, handler=self._enc_irq)
+            self._log.info('in1={}, in2={}, encA={}, encB={}; {}Hz'.format(
+                    in1_pin, in2_pin, enc_a_pin, enc_b_pin, freq))
+        else:
+            self._log.info('in1={}, in2={}, {}Hz (open loop)'.format(in1_pin, in2_pin, freq))
         self._log.info('ready.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈

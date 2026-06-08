@@ -28,18 +28,23 @@ class RadiozoaConfig:
     An optional NeoPixel ring may be provided for visual feedback during
     address assignment. If absent, configuration proceeds without it.
 
+    :param config:  the application configuration
     :param i2c:     the I2C bus
     :param ring:    optional NeoPixel ring for visual feedback
     :param level:   the logging level
     '''
-    def __init__(self, i2c=None, ring=None, level=Level.INFO):
+    def __init__(self, config=None, i2c=None, ring=None, level=Level.INFO):
         self._log = Logger('config', level=level)
+        if config is None:
+            raise TypeError('configuration argument is null.')
+        self._config = config
         if i2c is None:
             raise TypeError('i2c bus argument is null.')
         self._i2c = i2c
         self._default_i2c_address = 0x29
         self._configured = False
-        self._check_configured = False
+        _cfg = self._config['rros']['radiozoa']
+        self._check_configured = _cfg['check_configuration']
         self._ring = ring
         self._xshut_pins = {}
         self._setup_pins()
@@ -104,13 +109,17 @@ class RadiozoaConfig:
         Sequentially brings up each sensor and sets its I2C address,
         leaving it enabled.
         '''
-        from vl53l1x import VL53L1X
-#       from vl53l0x import VL53L0X
+         # import correct implementing class for the set of sensors
+        _impl = self._config['rros']['devices'][0]['impl']
+        if _impl == 'VL53L1X':
+            from vl53l1x import VL53L1X as Driver
+        else:
+            from vl53l0x import VL53L0X as Driver
 
         _device_delay_ms = 333
         _scan_delay_ms   = 750
         _count = 0
-
+        # instantiate devices
         devices = [d for d in Device.all() if d and d.impl is not None]
         devices.sort(key=lambda d: d.pixel)
         for device in devices:
@@ -179,10 +188,10 @@ class RadiozoaConfig:
         Change the I2C address for a VL53L0X or VL53L1X sensor currently at 0x29.
         '''
         current_addr = 0x29
-#       if device.impl == 'VL53L0X':
-#           self._i2c.writeto(current_addr, bytearray([0x00, 0x01, new_addr]))
-#           time.sleep_ms(50)
-        if device.impl == 'VL53L1X':
+        if device.impl == 'VL53L0X':
+            self._i2c.writeto(current_addr, bytearray([0x00, 0x01, new_addr]))
+            time.sleep_ms(50)
+        elif device.impl == 'VL53L1X':
             self._i2c.writeto(current_addr, bytearray([0x00, 0x01, new_addr]))
             time.sleep_ms(50)
         elif device.impl is None:

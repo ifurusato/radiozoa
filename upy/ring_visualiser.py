@@ -34,13 +34,13 @@ class RingVisualiser(Subscriber):
         self._use_enumerated_colors = False
         self._color = [0, 0, 0]
         self._brightness      = 1.0
-        self._brightness_step = 0.05
+        self._brightness_step = 0.005
         self._brighten        = False
         # clear ring on startup
         self._ring.off()
 
     def set_brightness(self, multiplier):
-#       self._brightness = multiplier
+        self._brightness = multiplier
         pass
 
     def set_brighten(self, brighten):
@@ -48,7 +48,6 @@ class RingVisualiser(Subscriber):
 
     async def process_message(self, message):
         distances = message.value
-        print(message)
         for device in Device._registry:
             distance = distances[device.index]
             if self._use_enumerated_colors:
@@ -59,7 +58,6 @@ class RingVisualiser(Subscriber):
             self._color[1] = int(raw_color[1] * self._brightness)
             self._color[2] = int(raw_color[2] * self._brightness)
             self._ring.set_color(device.pixel, self._color)
-            print(self._color)
             if self._brighten and self._brightness < 1.0:
                 self._brightness += self._brightness_step
                 if self._brightness == 1.0:

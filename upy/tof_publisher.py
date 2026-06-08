@@ -52,7 +52,6 @@ class ToFPublisher(Publisher):
             try:
                 _distances = self._sensor.get_distances()
                 _message = Message(TOF_DISTANCES, _distances)
-#               print("MSG: " + _message)
                 self.publish(_message)
             except Exception as e:
                 self._log.error('{} raised in poll loop: {}'.format(type(e), e))
