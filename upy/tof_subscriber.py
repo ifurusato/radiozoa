@@ -14,7 +14,7 @@ from event import TOF_DISTANCES
 from subscriber import Subscriber
 from colorama import *
 
-class TofSubscriber(Subscriber):
+class ToFSubscriber(Subscriber):
     '''
     A subscriber that logs received ToF distance messages.
     '''

@@ -18,7 +18,7 @@ from message_bus import MessageBus
 from radiozoa_config import RadiozoaConfig
 from radiozoa_sensor import RadiozoaSensor
 from tof_publisher import ToFPublisher
-from tof_subscriber import TofSubscriber
+from tof_subscriber import ToFSubscriber
 from motor_controller import MotorController
 from radiozoa_behaviour import RadiozoaBehaviour
 
@@ -50,6 +50,7 @@ class RROS:
         self._visualiser = None
         self._publisher  = None
         self._subscriber = None
+        self._behaviour  = None
         # configure sensor addresses synchronously before async loop starts
         self._log.info('configuring sensors…')
         self._config = RadiozoaConfig(i2c=self._i2c, ring=self._ring, level=self._level)
@@ -66,7 +67,9 @@ class RROS:
         self._log.info('creating publisher…')
         self._publisher = ToFPublisher(self._sensor, self._message_bus, level=self._level)
         self._log.info('creating behaviour…')
-        self._behaviour = RadiozoaBehaviour(self._message_bus, self._motor_controller, level=self._level)
+#       self._behaviour = RadiozoaBehaviour(self._message_bus, self._motor_controller, level=self._level)
+        self._subscriber = ToFSubscriber(self._message_bus, level=self._level)
+
         if self._ring is not None:
             from ring_visualiser import RingVisualiser
             self._log.info('creating ring visualiser…')
@@ -82,7 +85,8 @@ class RROS:
     async def run(self):
         self._message_bus.enable()
         self._publisher.enable()
-        self._behaviour.enable()
+        self._subscriber.enable()
+#       self._behaviour.enable()
         self._motor_controller.enable()
         if self._visualiser is not None:
             self._log.info(Fore.MAGENTA + 'enabling ring visualiser…' + Style.RESET_ALL)
@@ -106,6 +110,8 @@ class RROS:
             self._publisher.close()
         if self._subscriber:
             self._subscriber.close()
+        if self._behaviour:
+            self._behaviour.close()
         if self._message_bus:
             self._message_bus.close()
 
