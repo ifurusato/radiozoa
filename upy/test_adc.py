@@ -1,0 +1,25 @@
+#!/micropython
+# -*- coding: utf-8 -*-
+#
+# Copyright 2020-2026 by Ichiro Furusato. All rights reserved. This file is part
+# of the Robot Operating System project, released under the MIT License. Please
+# see the LICENSE file included as part of this package.
+#
+# author:   Ichiro Furusato
+# created:  2026-06-09
+# modified: 2026-06-09
+
+import time
+from analog_ctrl import AnalogControl
+
+# initialize on IO5
+control = AnalogControl(5)
+
+while True:
+    raw = control.read_raw()
+    scaled = control.read_scaled()
+
+    print("raw: {0} | scaled: {1}".format(raw, scaled))
+    time.sleep(0.1)
+
+#EOF
