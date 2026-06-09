@@ -10,7 +10,7 @@ rros:
         check_configured: True
     motor_controller:
         pin_in1:          43
-        pin_in2:           5
+        pin_in2:           6      # not exposed on PCB (test rig only)
         pin_in3:          21
         pin_in4:           0
         pin_enc1A:      null      # 16 (WeAct ESP32)
