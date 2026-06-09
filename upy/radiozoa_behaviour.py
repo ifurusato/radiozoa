@@ -123,6 +123,9 @@ class RadiozoaBehaviour(Behaviour):
         # port sensors: NW=7, W=6, SW=5; starboard sensors: NE=1, E=2, SE=3
         omega_raw = (_P[7] + _P[6] + _P[5]) - (_P[1] + _P[2] + _P[3])
 
+        # obtain bias from motor controller's analog control
+#       _bias = self._motor_controller.bias
+
         # 4. apply gain, clamp, deadband
         vx = vx_raw * self._GAIN_VX
         if vx >  1.0: vx =  1.0

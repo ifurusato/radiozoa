@@ -11,10 +11,12 @@
 
 import asyncio
 
+import itertools
 from colorama import Fore, Style
 
 from logger import Level
 from component import Component
+from analog_ctrl import AnalogControl
 from pixel import Pixel
 from motor import Motor
 from pid import PID
@@ -54,7 +56,13 @@ class MotorController(Component):
         self._pin_port_pix2 = _cfg['pin_port_pix2'] # 7
         self._pin_stbd_pix1 = _cfg['pin_stbd_pix1'] # 17
         self._pin_stbd_pix2 = _cfg['pin_stbd_pix2'] # 19
-        # motor pins
+        # analog controller ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._counter       = itertools.count()
+        self._pin_analog    = _cfg['pin_analog']    # 22
+        self._control       = AnalogControl(config)
+        self._last_bias     = 0.0
+        self._bias          = 0.0
+        # motor pins ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._pin_in1    = _cfg['pin_in1'] # 14 (WeAct ESP32)
         self._pin_in2    = _cfg['pin_in2'] # 12
         self._pin_in3    = _cfg['pin_in3'] #  6
@@ -89,6 +97,13 @@ class MotorController(Component):
         self._log.info('ready.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    @property
+    def bias(self):
+        '''
+        Return the bias value from the analog control.
+        '''
+        return self._bias
 
     @property
     def closed_loop(self):
@@ -186,6 +201,11 @@ class MotorController(Component):
         self._motor_port.set_power(pwr_port)
         self._motor_stbd.set_power(pwr_stbd)
 
+        # get and visualise the analog value ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._bias = round(self._control.value, 2)
+        self._visualiseBias(self._bias)
+        self._last_bias = self._bias
+
         # ring visualisation: hue encodes direction/type, value encodes power magnitude
         if self._ring:
             if self._visualise_hue:
@@ -209,6 +229,24 @@ class MotorController(Component):
                     self._ring.set_color(self._pin_stbd_pix1, (n_stbd, n_stbd, n_stbd))
                 if self._pin_stbd_pix2:
                     self._ring.set_color(self._pin_stbd_pix2, (n_stbd, n_stbd, n_stbd))
+
+    def _visualiseBias(self, bias):
+        # Map [-1.0, 1.0] to [0.0, 0.5] to use only half the color wheel.
+        # -1.0 becomes 0.0 (Red), 0.0 becomes 0.25 (Green), 1.0 becomes 0.5 (Cyan)
+        hue = (bias + 1.0) / 4.0
+        # Brightness still dips to 0.0 at the center deadband
+        brightness = abs(bias)
+        rgb_analog = Pixel.hsv_to_rgb(hue, 1.0, brightness)
+        self._ring.set_color(self._pin_analog, rgb_analog)
+        self._count = next(self._counter)
+        if bias != self._last_bias:
+            self._log.info("analog value: {}".format(bias))
+        elif self._count % 20 == 0:
+            self._log.info(
+                Fore.BLACK
+                + "analog value: {}".format(bias)
+                + Style.RESET_ALL
+            )
 
     async def _run(self):
         '''

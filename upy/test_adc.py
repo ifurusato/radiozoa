@@ -11,15 +11,17 @@
 
 import time
 from analog_ctrl import AnalogControl
+from config_loader import ConfigLoader
 
-# initialize on IO5
-control = AnalogControl(5)
+config = ConfigLoader.configure('config.yaml')
+control = AnalogControl(config)
 
 while True:
-    raw = control.read_raw()
-    scaled = control.read_scaled()
+    raw        = control.raw_value
+    percentage = control.percentage_value
+    scaled     = control.value
 
-    print("raw: {0} | scaled: {1}".format(raw, scaled))
+    print("raw: {0} | percentage: {1} |  scaled: {2}".format(raw, percentage, scaled))
     time.sleep(0.1)
 
 #EOF

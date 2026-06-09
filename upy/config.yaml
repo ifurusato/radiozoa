@@ -6,6 +6,9 @@ rros:
         scl:               9
         sda:               8
         baud_rate:   400_000
+    analog_control:
+        pin:               5
+        deadband:          0.05
     radiozoa:
         check_configured: True
     motor_controller:
@@ -21,6 +24,7 @@ rros:
         pin_port_pix2:     7
         pin_stbd_pix1:    17
         pin_stbd_pix2:    19
+        pin_analog:       22
         period_ms:        50
     devices:
       - index:             0
