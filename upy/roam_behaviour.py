@@ -66,7 +66,6 @@ class Roam(Behaviour):
         self._log.info('ready.')
 
     async def process_message(self, message):
-        print('message: {}'.format(message))
         distances = message.value
         vx, vy, omega = self._process(distances)
         self._intent_vector = (vx, vy, omega)

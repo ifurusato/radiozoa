@@ -87,7 +87,7 @@ class MotorController(Component):
         # when False, bypasses PID and maps target speed directly to motor power
         self._closed_loop    = False
         self._stop           = False
-        self._diag_count     = 0 # TEMP
+#       self._diag_count     = 0 # temporary telemetry check
         self._log.info('ready.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -200,15 +200,14 @@ class MotorController(Component):
         self._motor_port.set_power(pwr_port)
         self._motor_stbd.set_power(pwr_stbd)
 
-        # TEMP telemetry check
-        self._diag_count += 1
-        if self._diag_count % 10 == 0:
-            self._log.info(
-                Fore.YELLOW
-                + "KINEMATICS -> vy: {0:.2f} | v_port: {1:.2f} | v_stbd: {2:.2f}".format(vy, v_port, v_stbd)
-                + Style.RESET_ALL
-            )
-
+#       # telemetry check
+#       self._diag_count += 1
+#       if self._diag_count % 10 == 0:
+#           self._log.info(
+#               Fore.YELLOW
+#               + "KINEMATICS -> vy: {0:.2f} | v_port: {1:.2f} | v_stbd: {2:.2f}".format(vy, v_port, v_stbd)
+#               + Style.RESET_ALL
+#           )
 
         # ring visualisation: hue encodes direction/type, value encodes power magnitude
         if self._ring:
