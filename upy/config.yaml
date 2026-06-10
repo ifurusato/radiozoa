@@ -2,81 +2,81 @@
 
 rros:
     i2c:
-        id:                1
-        scl:               9
-        sda:               8
-        baud_rate:   400_000
+        id:                    1
+        scl:                   9
+        sda:                   8
+        baud_rate:       400_000
     analog_control:
-        pin:               5
-        deadband:          0.05
+        pin:                   5
+        deadband:              0.05
     roam:
-        enabled:        True
-        pin_analog:       22
+        enabled:            True
+        pin_analog:           22
     radiozoa:
-        enabled:       False
-        check_configured: True
+        enabled:            True
+        check_configured:   True
     motor_controller:
-        pin_in1:          43
-        pin_in2:           6      # not exposed on PCB (test rig only)
-        pin_in3:          21
-        pin_in4:           0
-        pin_enc1A:      null      # 16 (WeAct ESP32)
-        pin_enc1B:      null      # 17
-        pin_enc2A:      null      #  2
-        pin_enc2B:      null      #  1
-        pin_port_pix1:     5      # visualise pixel pins (optional)
-        pin_port_pix2:     7
-        pin_stbd_pix1:    17
-        pin_stbd_pix2:    19
-        period_ms:        50
+        pin_in1:              43
+        pin_in2:               6       # not exposed on PCB (test rig only)
+        pin_in3:              21
+        pin_in4:               0
+        pin_enc1A:          null       # 16 (WeAct ESP32)
+        pin_enc1B:          null       # 17
+        pin_enc2A:          null       #  2
+        pin_enc2B:          null       #  1
+        pin_port_pix1:         5       # visualise pixel pins (set None to disable)
+        pin_port_pix2:         7       # ditto
+        pin_stbd_pix1:        17       # ditto
+        pin_stbd_pix2:        19       # ditto
+        period_ms:            50
     devices:
-      - index:             0
-        impl:      "VL53L1X"
-        label:          "N0"
-        address:        0x30
-        pixel:            12
-        xshut:            37
-      - index:             1
-        impl:      "VL53L1X"
-        label:         "NE1"
-        address:        0x31
-        pixel:            15
-        xshut:             1
-      - index:             2
-        impl:      "VL53L1X"
-        label:          "E2"
-        address:        0x32
-        pixel:            18
-        xshut:            36
-      - index:             3
-        impl:      "VL53L1X"
-        label:         "SE3"
-        address:        0x33
-        pixel:            21
-        xshut:             2
-      - index:             4
-        impl:      "VL53L1X"
-        label:          "S4"
-        address:        0x34
-        pixel:             0
-        xshut:            35
-      - index:             5
-        impl:      "VL53L1X"
-        label:         "SW5"
-        address:        0x35
-        pixel:             3
-        xshut:             3
-      - index:             6
-        impl:      "VL53L1X"
-        label:          "W6"
-        address:        0x36
-        pixel:             6
-        xshut:            34
-      - index:             7
-        impl:      "VL53L1X"
-        label:         "NW7"
-        address:        0x37
-        pixel:             9
-        xshut:             4
+      - index:                 0
+        impl:          "VL53L1X"
+        label:              "N0"
+        address:            0x30
+        pixel:                12
+        xshut:                37
+      - index:                 1
+        impl:          "VL53L1X"
+        label:             "NE1"
+        address:            0x31
+        pixel:                15
+        xshut:                 1
+      - index:                 2
+        impl:          "VL53L1X"
+        label:              "E2"
+        address:            0x32
+        pixel:                18
+        xshut:                36
+      - index:                 3
+        impl:          "VL53L1X"
+        label:             "SE3"
+        address:            0x33
+        pixel:                21
+        xshut:                 2
+      - index:                 4
+        impl:          "VL53L1X"
+        label:              "S4"
+        address:            0x34
+        pixel:                 0
+        xshut:                35
+      - index:                 5
+        impl:          "VL53L1X"
+        label:             "SW5"
+        address:            0x35
+        pixel:                 3
+        xshut:                 3
+      - index:                 6
+        impl:          "VL53L1X"
+        label:              "W6"
+        address:            0x36
+        pixel:                 6
+        xshut:                34
+      - index:                 7
+        impl:          "VL53L1X"
+        label:             "NW7"
+        address:            0x37
+        pixel:                 9
+        xshut:                 4
 
 #EOF
