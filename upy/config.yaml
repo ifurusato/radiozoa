@@ -13,7 +13,7 @@ rros:
         enabled:        True
         pin_analog:       22
     radiozoa:
-        enabled:        True
+        enabled:       False
         check_configured: True
     motor_controller:
         pin_in1:          43

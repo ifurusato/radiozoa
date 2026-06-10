@@ -45,8 +45,9 @@ class MotorController(Component):
             raise TypeError('no configuration provided.')
         _cfg = config['rros']['motor_controller']
         self._ring           = ring
+        self._deadband       = config['rros']['analog_control']['deadband'] # 0.05
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._visualise_hue  = False # permit hue to be set
+        self._visualise_hue  = True # permit hue to be set
         self._hue_angle      = 0.875 # red=0.0; orange=0.083; magenta=0.833; fuchsia=0.875, etc.
         self._period_ms      = _cfg['period_ms']    # control loop period in ms (20Hz)
         # ring pixels for motor speed visualisation: free pixels between cardinal positions
@@ -86,6 +87,7 @@ class MotorController(Component):
         # when False, bypasses PID and maps target speed directly to motor power
         self._closed_loop    = False
         self._stop           = False
+        self._diag_count     = 0 # TEMP
         self._log.info('ready.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -107,23 +109,34 @@ class MotorController(Component):
     def lateral_gain(self, value):
         self._lateral_gain = value
 
-    def set_intent_vector(self, name, vx, vy, omega, priority):
+    def add_intent_vector(self, name, vector_lambda, priority_lambda):
         '''
-        registers or updates an intent vector entry by name.
+        Registers a behaviour's intent vector and priority lambdas by name.
+        The vector lambda returns (vx, vy, omega); the priority lambda returns a float.
+        Raises if the name is already registered.
         '''
-        self._intent_vectors[name] = (vx, vy, omega, priority)
+        if name in self._intent_vectors:
+            raise ValueError("intent vector '{}' already registered.".format(name))
+        self._intent_vectors[name] = {
+            'vector':   vector_lambda,
+            'priority': priority_lambda
+        }
+        self._log.info('added intent vector: {}'.format(name))
 
     def remove_intent_vector(self, name):
         '''
-        removes a previously registered intent vector.
+        Removes a previously registered intent vector by name.
         '''
         if name in self._intent_vectors:
             del self._intent_vectors[name]
+            self._log.info('removed intent vector: {}'.format(name))
 
     def _blend_intent_vectors(self):
         '''
-        returns a priority-weighted average of all registered intent vectors
-        as a (vx, vy, omega) tuple.
+        Priority-weighted blend of all registered intent vectors.
+        Entries returning (0.0, 0.0, 0.0) are skipped so that inactive or
+        Non-contributing behaviours do not dilute the result.
+        Returns a (vx, vy, omega) tuple.
         '''
         if not self._intent_vectors:
             return (0.0, 0.0, 0.0)
@@ -132,16 +145,17 @@ class MotorController(Component):
         vy      = 0.0
         omega   = 0.0
         for entry in self._intent_vectors.values():
-            p       = entry[3]
-            vx     += entry[0] * p
-            vy     += entry[1] * p
-            omega  += entry[2] * p
+            vec = entry['vector']()
+            if vec[0] == 0.0 and vec[1] == 0.0 and vec[2] == 0.0:
+                continue
+            p      = entry['priority']()
+            vx    += vec[0] * p
+            vy    += vec[1] * p
+            omega += vec[2] * p
             total_p += p
-        if total_p > 0.0:
-            vx    /= total_p
-            vy    /= total_p
-            omega /= total_p
-        return (vx, vy, omega)
+        if total_p == 0.0:
+            return (0.0, 0.0, 0.0)
+        return (vx / total_p, vy / total_p, omega / total_p)
 
     def _slew(self, current, target, max_change):
         diff = target - current
@@ -186,29 +200,43 @@ class MotorController(Component):
         self._motor_port.set_power(pwr_port)
         self._motor_stbd.set_power(pwr_stbd)
 
+        # TEMP telemetry check
+        self._diag_count += 1
+        if self._diag_count % 10 == 0:
+            self._log.info(
+                Fore.YELLOW
+                + "KINEMATICS -> vy: {0:.2f} | v_port: {1:.2f} | v_stbd: {2:.2f}".format(vy, v_port, v_stbd)
+                + Style.RESET_ALL
+            )
+
+
         # ring visualisation: hue encodes direction/type, value encodes power magnitude
         if self._ring:
-            if self._visualise_hue:
-                # cyan is at 180 degrees (180 / 360 = 0.5)
-                v_port = abs(pwr_port)
-                v_stbd = abs(pwr_stbd)
-                rgb_port = Pixel.hsv_to_rgb(self._hue_angle, 1.0, v_port)
-                rgb_stbd = Pixel.hsv_to_rgb(self._hue_angle, 1.0, v_stbd)
-                self._ring.set_color(self._pin_port_pix1, rgb_port)
-                self._ring.set_color(self._pin_port_pix2, rgb_port)
-                self._ring.set_color(self._pin_stbd_pix1, rgb_stbd)
-                self._ring.set_color(self._pin_stbd_pix2, rgb_stbd)
+            # PORT visualisation ┈┈┈┈┈┈┈┈┈┈┈┈
+            if abs(v_port) < self._deadband:
+                rgb_port = (0, 0, 0)
             else:
-                n_port = int(abs(pwr_port) * 255)
-                n_stbd = int(abs(pwr_stbd) * 255)
-                if self._pin_port_pix1:
-                    self._ring.set_color(self._pin_port_pix1, (n_port, n_port, n_port))
-                if self._pin_port_pix2:
-                    self._ring.set_color(self._pin_port_pix2, (n_port, n_port, n_port))
-                if self._pin_stbd_pix1:
-                    self._ring.set_color(self._pin_stbd_pix1, (n_stbd, n_stbd, n_stbd))
-                if self._pin_stbd_pix2:
-                    self._ring.set_color(self._pin_stbd_pix2, (n_stbd, n_stbd, n_stbd))
+                # map [-1.0, 1.0] to [0.0, 0.5] (Red -> Green -> Cyan)
+                hue_port = (v_port + 1.0) / 4.0
+                brightness_port = abs(v_port)
+                rgb_port = Pixel.hsv_to_rgb(hue_port, 1.0, brightness_port)
+            # STBD visualisation ┈┈┈┈┈┈┈┈┈┈┈┈
+            if abs(v_stbd) < self._deadband:
+                rgb_stbd = (0, 0, 0)
+            else:
+                # map [-1.0, 1.0] to [0.0, 0.5] (Red -> Green -> Cyan)
+                hue_stbd = (v_stbd + 1.0) / 4.0
+                brightness_stbd = abs(v_stbd)
+                rgb_stbd = Pixel.hsv_to_rgb(hue_stbd, 1.0, brightness_stbd)
+            # apply to pixels ┈┈┈┈┈┈┈┈┈┈┈┈
+            if self._pin_port_pix1:
+                self._ring.set_color(self._pin_port_pix1, rgb_port)
+            if self._pin_port_pix2:
+                self._ring.set_color(self._pin_port_pix2, rgb_port)
+            if self._pin_stbd_pix1:
+                self._ring.set_color(self._pin_stbd_pix1, rgb_stbd)
+            if self._pin_stbd_pix2:
+                self._ring.set_color(self._pin_stbd_pix2, rgb_stbd)
 
     async def _run(self):
         '''

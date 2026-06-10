@@ -40,14 +40,12 @@ class Roam(Behaviour):
     _D_RANGE  = _D_MAX - _D_MIN
 
     _PRIORITY = 0.4     # fixed; below RadiozoaBehaviour's maximum
-
     _DEADBAND = 0.02
 
     def __init__(self, config=None, message_bus=None, motor_controller=None, ring=None, level=Level.INFO):
         Behaviour.__init__(self, 'roam', message_bus, level)
         if config is None:
             raise TypeError('configuration argument is null.')
-        self._config = config
         _cfg = config['rros']['roam']
         self._motor_controller = motor_controller
         self._ring       = ring
@@ -59,13 +57,19 @@ class Roam(Behaviour):
         self._control    = AnalogControl(config)
         self._bias       = 0.0
         self._last_bias  = 0.0
+        self._intent_vector = (0.0, 0.0, 0.0)
+        if self._motor_controller is not None:
+            self._motor_controller.add_intent_vector(
+                'roam',
+                lambda: self._intent_vector if self.is_active else (0.0, 0.0, 0.0),
+                lambda: self._priority)
         self._log.info('ready.')
 
     async def process_message(self, message):
+        print('message: {}'.format(message))
         distances = message.value
         vx, vy, omega = self._process(distances)
         self._intent_vector = (vx, vy, omega)
-        self._motor_controller.set_intent_vector('roam', vx, vy, omega, self._priority)
 
     def _process(self, distances):
         '''

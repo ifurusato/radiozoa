@@ -69,13 +69,17 @@ class Radiozoa(Behaviour):
         self._motor_controller = motor_controller
         self._priority = self._PRIORITY_MIN
         self.add_event(TOF_DISTANCES)
+        if self._motor_controller is not None:
+            self._motor_controller.add_intent_vector(
+                'radiozoa',
+                lambda: self._intent_vector if self.is_active else (0.0, 0.0, 0.0),
+                lambda: self._priority)
         self._log.info('ready.')
 
     async def process_message(self, message):
         distances = message.value
         vx, vy, omega = self._process(distances)
         self._intent_vector = (vx, vy, omega)
-        self._motor_controller.set_intent_vector('radiozoa', vx, vy, omega, self._priority)
 
     def _process(self, distances):
         '''
