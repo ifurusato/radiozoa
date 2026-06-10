@@ -49,6 +49,13 @@ class RadiozoaSensor:
     def is_ranging(self):
         return self._is_ranging
 
+    def get_sensor(self, label):
+        '''
+        Return the VL53 sensor corresponding to the device label.
+        '''
+        device = Device.by_label(label)
+        return device != None ? self._sensors.get(device) : None
+
     def _create_sensors(self):
         '''
         Creates VL53L1X instances for all eight sensors using the Device pseudo-enum.
