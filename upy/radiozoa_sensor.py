@@ -54,7 +54,7 @@ class RadiozoaSensor:
         Return the VL53 sensor corresponding to the device label.
         '''
         device = Device.by_label(label)
-        return device != None ? self._sensors.get(device) : None
+        return self._sensors.get(device)
 
     def _create_sensors(self):
         '''

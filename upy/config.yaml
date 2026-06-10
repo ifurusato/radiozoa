@@ -9,7 +9,11 @@ rros:
     analog_control:
         pin:               5
         deadband:          0.05
+    roam:
+        enabled:        True
+        pin_analog:       22
     radiozoa:
+        enabled:        True
         check_configured: True
     motor_controller:
         pin_in1:          43
@@ -24,7 +28,6 @@ rros:
         pin_port_pix2:     7
         pin_stbd_pix1:    17
         pin_stbd_pix2:    19
-        pin_analog:       22
         period_ms:        50
     devices:
       - index:             0

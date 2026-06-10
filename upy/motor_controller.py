@@ -7,16 +7,14 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-06-07
+# modified: 2026-06-10
 
 import asyncio
 
-import itertools
 from colorama import Fore, Style
 
 from logger import Level
 from component import Component
-from analog_ctrl import AnalogControl
 from pixel import Pixel
 from motor import Motor
 from pid import PID
@@ -43,45 +41,39 @@ class MotorController(Component):
     '''
     def __init__(self, config=None, ring=None, level=Level.INFO):
         Component.__init__(self, MotorController.NAME)
-        self._ring       = ring
-        # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._visualise_hue = False # permit hue to be set
-        self._hue_angle  = 0.875 # red=0.0; orange=0.083; magenta=0.833; fuchsia=0.875, etc.
         if config is None:
             raise TypeError('no configuration provided.')
         _cfg = config['rros']['motor_controller']
-        self._period_ms  = _cfg['period_ms']    # control loop period in ms (20Hz)
+        self._ring           = ring
+        # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._visualise_hue  = False # permit hue to be set
+        self._hue_angle      = 0.875 # red=0.0; orange=0.083; magenta=0.833; fuchsia=0.875, etc.
+        self._period_ms      = _cfg['period_ms']    # control loop period in ms (20Hz)
         # ring pixels for motor speed visualisation: free pixels between cardinal positions
-        self._pin_port_pix1 = _cfg['pin_port_pix1'] # 5
-        self._pin_port_pix2 = _cfg['pin_port_pix2'] # 7
-        self._pin_stbd_pix1 = _cfg['pin_stbd_pix1'] # 17
-        self._pin_stbd_pix2 = _cfg['pin_stbd_pix2'] # 19
-        # analog controller ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._counter       = itertools.count()
-        self._pin_analog    = _cfg['pin_analog']    # 22
-        self._control       = AnalogControl(config)
-        self._last_bias     = 0.0
-        self._bias          = 0.0
+        self._pin_port_pix1  = _cfg['pin_port_pix1'] # 5
+        self._pin_port_pix2  = _cfg['pin_port_pix2'] # 7
+        self._pin_stbd_pix1  = _cfg['pin_stbd_pix1'] # 17
+        self._pin_stbd_pix2  = _cfg['pin_stbd_pix2'] # 19
         # motor pins ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._pin_in1    = _cfg['pin_in1'] # 14 (WeAct ESP32)
-        self._pin_in2    = _cfg['pin_in2'] # 12
-        self._pin_in3    = _cfg['pin_in3'] #  6
-        self._pin_in4    = _cfg['pin_in4'] #  4
+        self._pin_in1        = _cfg['pin_in1'] # 14 (WeAct ESP32)
+        self._pin_in2        = _cfg['pin_in2'] # 12
+        self._pin_in3        = _cfg['pin_in3'] #  6
+        self._pin_in4        = _cfg['pin_in4'] #  4
         # IN1: 43; IN2: 5; IN3: 21; IN4: 0
         self._log.info(Fore.WHITE + 'IN1: {}; IN2: {}; IN3: {}; IN4: {}'.format(
             self._pin_in1, self._pin_in2, self._pin_in3, self._pin_in4) + Style.RESET_ALL)
-        self._pin_enc1a  = _cfg['pin_enc1A'] # 16 (WeAct ESP32)
-        self._pin_enc1b  = _cfg['pin_enc1B'] # 17
-        self._pin_enc2a  = _cfg['pin_enc2A'] #  2
-        self._pin_enc2b  = _cfg['pin_enc2B'] #  1
+        self._pin_enc1a      = _cfg['pin_enc1A'] # 16 (WeAct ESP32)
+        self._pin_enc1b      = _cfg['pin_enc1B'] # 17
+        self._pin_enc2a      = _cfg['pin_enc2A'] #  2
+        self._pin_enc2b      = _cfg['pin_enc2B'] #  1
         self._log.info(Fore.WHITE + 'ENC1A: {}; ENC1B: {}; ENC2A: {}; ENC2B: {}'.format(
             self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b) + Style.RESET_ALL)
         # motors: port uses IN1/IN2 and ENC1; stbd uses IN3/IN4 and ENC2
-        self._motor_port = Motor('port', self._pin_in1, self._pin_in2, self._pin_enc1a, self._pin_enc1b, level=level)
-        self._motor_stbd = Motor('stbd', self._pin_in3, self._pin_in4, self._pin_enc2a, self._pin_enc2b, level=level)
+        self._motor_port     = Motor('port', self._pin_in1, self._pin_in2, self._pin_enc1a, self._pin_enc1b, level=level)
+        self._motor_stbd     = Motor('stbd', self._pin_in3, self._pin_in4, self._pin_enc2a, self._pin_enc2b, level=level)
         # PID controllers — gains are initial estimates pending tuning with hardware
-        self._pid_port = PID('port', kp=0.8, ki=0.1, kd=0.05)
-        self._pid_stbd = PID('stbd', kp=0.8, ki=0.1, kd=0.05)
+        self._pid_port       = PID('port', kp=0.8, ki=0.1, kd=0.05)
+        self._pid_stbd       = PID('stbd', kp=0.8, ki=0.1, kd=0.05)
         # intent vectors registry: name → (vx, vy, omega, priority)
         self._intent_vectors = {}
         # lateral gain: scales vx contribution into omega correction
@@ -97,13 +89,6 @@ class MotorController(Component):
         self._log.info('ready.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-
-    @property
-    def bias(self):
-        '''
-        Return the bias value from the analog control.
-        '''
-        return self._bias
 
     @property
     def closed_loop(self):
@@ -201,11 +186,6 @@ class MotorController(Component):
         self._motor_port.set_power(pwr_port)
         self._motor_stbd.set_power(pwr_stbd)
 
-        # get and visualise the analog value ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._bias = round(self._control.value, 2)
-        self._visualiseBias(self._bias)
-        self._last_bias = self._bias
-
         # ring visualisation: hue encodes direction/type, value encodes power magnitude
         if self._ring:
             if self._visualise_hue:
@@ -229,24 +209,6 @@ class MotorController(Component):
                     self._ring.set_color(self._pin_stbd_pix1, (n_stbd, n_stbd, n_stbd))
                 if self._pin_stbd_pix2:
                     self._ring.set_color(self._pin_stbd_pix2, (n_stbd, n_stbd, n_stbd))
-
-    def _visualiseBias(self, bias):
-        # Map [-1.0, 1.0] to [0.0, 0.5] to use only half the color wheel.
-        # -1.0 becomes 0.0 (Red), 0.0 becomes 0.25 (Green), 1.0 becomes 0.5 (Cyan)
-        hue = (bias + 1.0) / 4.0
-        # Brightness still dips to 0.0 at the center deadband
-        brightness = abs(bias)
-        rgb_analog = Pixel.hsv_to_rgb(hue, 1.0, brightness)
-        self._ring.set_color(self._pin_analog, rgb_analog)
-        self._count = next(self._counter)
-        if bias != self._last_bias:
-            self._log.info("analog value: {}".format(bias))
-        elif self._count % 20 == 0:
-            self._log.info(
-                Fore.BLACK
-                + "analog value: {}".format(bias)
-                + Style.RESET_ALL
-            )
 
     async def _run(self):
         '''

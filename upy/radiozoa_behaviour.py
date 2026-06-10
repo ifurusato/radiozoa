@@ -28,7 +28,7 @@ _COS = [  1.0,  _R2,  0.0, -_R2, -1.0, -_R2,  0.0,  _R2 ]
 # pre-allocated pressure buffer — updated in-place each call, never reallocated
 _P = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ]
 
-class RadiozoaBehaviour(Behaviour):
+class Radiozoa(Behaviour):
     '''
     Subscribes to TOF_DISTANCES messages and converts the eight distance
     readings into a (vx, vy, omega) intent vector for the MotorController.
