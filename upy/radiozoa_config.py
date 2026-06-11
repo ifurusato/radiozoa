@@ -28,12 +28,12 @@ class RadiozoaConfig:
     An optional NeoPixel ring may be provided for visual feedback during
     address assignment. If absent, configuration proceeds without it.
 
-    :param config:  the application configuration
-    :param i2c:     the I2C bus
-    :param ring:    optional NeoPixel ring for visual feedback
-    :param level:   the logging level
+    :param config:      the application configuration
+    :param i2c:         the I2C bus
+    :param visualiser:  optional NeoPixel ring visualiser
+    :param level:       the logging level
     '''
-    def __init__(self, config=None, i2c=None, ring=None, level=Level.INFO):
+    def __init__(self, config=None, i2c=None, visualiser=None, level=Level.INFO):
         self._log = Logger('config', level=level)
         if config is None:
             raise TypeError('configuration argument is null.')
@@ -46,7 +46,7 @@ class RadiozoaConfig:
         _cfg = self._config['rros']['radiozoa']
         self._check_configured = _cfg['check_configured']
         self._log.info(Fore.WHITE + 'check configured: {}'.format(self._check_configured) + Style.RESET_ALL)
-        self._ring = ring
+        self._visualiser = visualiser
         self._xshut_pins = {}
         self._setup_pins()
         self._i2c_scanner = I2CScanner(i2c=self._i2c)
@@ -130,8 +130,8 @@ class RadiozoaConfig:
         devices = [d for d in Device.all() if d and d.impl is not None]
         devices.sort(key=lambda d: d.pixel)
         for device in devices:
-            if self._ring:
-                self._ring.set_color(device.pixel, COLOR_DEEP_FUCHSIA)
+            if self._visualiser:
+                self._visualiser.set_color(device.pixel, COLOR_DEEP_FUCHSIA)
             self._log.info('configuring sensor {} at XSHUT pin {}…'.format(
                     device.label, device.xshut))
             self._set_xshut(device.index, True)
@@ -147,33 +147,33 @@ class RadiozoaConfig:
                     self._log.info(Style.DIM + '[{}] waiting for sensor…'.format(i))
             if not found:
                 self._log.warning('sensor {} did not appear at 0x29.'.format(device.label))
-                if self._ring:
-                    self._ring.set_color(device.pixel, COLOR_RED)
+                if self._visualiser:
+                    self._visualiser.set_color(device.pixel, COLOR_RED)
                 continue
             try:
                 self._set_i2c_address(device, device.i2c_address)
                 self._log.info('set address for sensor {} to 0x{:02X}.'.format(
                         device.label, device.i2c_address))
-                if self._ring:
-                    self._ring.set_color(device.pixel, COLOR_GREEN)
+                if self._visualiser:
+                    self._visualiser.set_color(device.pixel, COLOR_GREEN)
                 _count += 1
             except Exception as e:
                 self._log.error('{} raised setting address for sensor {}: {}'.format(
                         type(e), device.label, e))
                 sys.print_exception(e)
-                if self._ring:
-                    self._ring.set_color(device.pixel, COLOR_RED)
+                if self._visualiser:
+                    self._visualiser.set_color(device.pixel, COLOR_RED)
             time.sleep_ms(_device_delay_ms)
 
         if _count == 8:
-            if self._ring:
+            if self._visualiser:
                 # fade out
                 for green in range(255, -1, -5):
                     color = (0, green, 0)
                     for device in devices:
-                        self._ring.set_color(device.pixel, color)
+                        self._visualiser.set_color(device.pixel, color)
 #               for index in range(24):
-#                   self._ring.set_color(index, COLOR_BLACK)
+#                   self._visualiser.set_color(index, COLOR_BLACK)
             self._configured = True
 
         else:

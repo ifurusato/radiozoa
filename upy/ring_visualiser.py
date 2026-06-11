@@ -33,7 +33,7 @@ class RingVisualiser(Subscriber):
         self.add_event(TOF_DISTANCES)
         self._use_enumerated_colors = False
         self._color_at_limit = 0.833 # 0.75 indigo; 0.833 magenta
-        self._color = [0, 0, 0]
+        self._color           = [0, 0, 0]
         self._brightness      = 1.0
         self._brightness_step = 0.01
         self._brighten        = False
@@ -55,14 +55,20 @@ class RingVisualiser(Subscriber):
                 raw_color = self._distance_to_enumerated_color(distance)
             else:
                 raw_color = self._distance_to_color(distance)
-            self._color[0] = int(raw_color[0] * self._brightness)
-            self._color[1] = int(raw_color[1] * self._brightness)
-            self._color[2] = int(raw_color[2] * self._brightness)
-            self._ring.set_color(device.pixel, self._color)
+            self.set_color(device.pixel, raw_color)
             if self._brighten and self._brightness < 1.0:
                 self._brightness += self._brightness_step
                 if self._brightness == 1.0:
                     self._brighten = False
+
+    def off(self, pixel):
+        self._ring.set_color(pixel, (0, 0, 0))
+
+    def set_color(self, pixel, color):
+        self._color[0] = int(color[0] * self._brightness)
+        self._color[1] = int(color[1] * self._brightness)
+        self._color[2] = int(color[2] * self._brightness)
+        self._ring.set_color(pixel, self._color)
 
     def _distance_to_enumerated_color(self, distance):
         if distance >= OUT_OF_RANGE:

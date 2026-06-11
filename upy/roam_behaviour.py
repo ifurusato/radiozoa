@@ -33,6 +33,7 @@ class Roam(Behaviour):
 
     :param message_bus:      the message bus
     :param motor_controller: the MotorController instance
+    :param visualiser:       the ring visualiser
     :param level:            the logging level
     '''
     _D_MIN    = 150.0   # stop threshold in mm
@@ -42,13 +43,13 @@ class Roam(Behaviour):
     _PRIORITY = 0.4     # fixed; below RadiozoaBehaviour's maximum
     _DEADBAND = 0.02
 
-    def __init__(self, config=None, message_bus=None, motor_controller=None, ring=None, level=Level.INFO):
+    def __init__(self, config=None, message_bus=None, motor_controller=None, visualiser=None, level=Level.INFO):
         Behaviour.__init__(self, 'roam', message_bus, level)
         if config is None:
             raise TypeError('configuration argument is null.')
         _cfg = config['rros']['roam']
         self._motor_controller = motor_controller
-        self._ring       = ring
+        self._visualiser = visualiser
         self._priority   = self._PRIORITY
         self.add_event(TOF_DISTANCES)
         # analog controller ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -107,7 +108,7 @@ class Roam(Behaviour):
         # Brightness still dips to 0.0 at the center deadband
         brightness = abs(self._bias)
         rgb_analog = Pixel.hsv_to_rgb(hue, 1.0, brightness)
-        self._ring.set_color(self._pin_analog, rgb_analog)
+        self._visualiser.set_color(self._pin_analog, rgb_analog)
         self._count = next(self._counter)
         if self._bias != self._last_bias:
             self._log.info("analog value: {}".format(self._bias))

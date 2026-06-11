@@ -36,21 +36,21 @@ class MotorController(Component):
 
     Intended to be run as an asyncio task via _run(), registered by RROS.
 
-    :param ring:   optional NeoPixel ring for motor speed visualisation
-    :param level:  the logging level
+    :param visualiser:   optional NeoPixel ring for motor speed visualisation
+    :param level:        the logging level
     '''
-    def __init__(self, config=None, ring=None, level=Level.INFO):
+    def __init__(self, config=None, visualiser=None, level=Level.INFO):
         Component.__init__(self, MotorController.NAME)
         if config is None:
             raise TypeError('no configuration provided.')
         _cfg = config['rros']['motor_controller']
-        self._ring           = ring
+        self._visualiser           = visualiser
         self._deadband       = config['rros']['analog_control']['deadband'] # 0.05
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._visualise_hue  = True # permit hue to be set
         self._hue_angle      = 0.875 # red=0.0; orange=0.083; magenta=0.833; fuchsia=0.875, etc.
         self._period_ms      = _cfg['period_ms']    # control loop period in ms (20Hz)
-        # ring pixels for motor speed visualisation: free pixels between cardinal positions
+        # ring pixels for motor speed visualisation ┈┈┈┈┈┈┈┈
         self._pin_port_pix1  = _cfg['pin_port_pix1'] # 5
         self._pin_port_pix2  = _cfg['pin_port_pix2'] # 7
         self._pin_stbd_pix1  = _cfg['pin_stbd_pix1'] # 17
@@ -210,7 +210,7 @@ class MotorController(Component):
 #           )
 
         # ring visualisation: hue encodes direction/type, value encodes power magnitude
-        if self._ring:
+        if self._visualiser:
             # PORT visualisation ┈┈┈┈┈┈┈┈┈┈┈┈
             if abs(v_port) < self._deadband:
                 rgb_port = (0, 0, 0)
@@ -229,13 +229,13 @@ class MotorController(Component):
                 rgb_stbd = Pixel.hsv_to_rgb(hue_stbd, 1.0, brightness_stbd)
             # apply to pixels ┈┈┈┈┈┈┈┈┈┈┈┈
             if self._pin_port_pix1:
-                self._ring.set_color(self._pin_port_pix1, rgb_port)
+                self._visualiser.set_color(self._pin_port_pix1, rgb_port)
             if self._pin_port_pix2:
-                self._ring.set_color(self._pin_port_pix2, rgb_port)
+                self._visualiser.set_color(self._pin_port_pix2, rgb_port)
             if self._pin_stbd_pix1:
-                self._ring.set_color(self._pin_stbd_pix1, rgb_stbd)
+                self._visualiser.set_color(self._pin_stbd_pix1, rgb_stbd)
             if self._pin_stbd_pix2:
-                self._ring.set_color(self._pin_stbd_pix2, rgb_stbd)
+                self._visualiser.set_color(self._pin_stbd_pix2, rgb_stbd)
 
     async def _run(self):
         '''
@@ -282,12 +282,12 @@ class MotorController(Component):
             self.coast()
             self._motor_port.close()
             self._motor_stbd.close()
-            if self._ring:
+            if self._visualiser:
                 # clear pixels
-                self._ring.set_color(self._pin_port_pix1, (0, 0, 0))
-                self._ring.set_color(self._pin_port_pix2, (0, 0, 0))
-                self._ring.set_color(self._pin_stbd_pix1, (0, 0, 0))
-                self._ring.set_color(self._pin_stbd_pix2, (0, 0, 0))
+                self._visualiser.off(self._pin_port_pix1)
+                self._visualiser.off(self._pin_port_pix2)
+                self._visualiser.off(self._pin_stbd_pix1)
+                self._visualiser.off(self._pin_stbd_pix2)
             Component.close(self)
             self._log.info('closed.')
 

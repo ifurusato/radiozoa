@@ -41,7 +41,8 @@ class RROS:
         self._config = ConfigLoader.configure('config.yaml')
         self._radiozoa_enabled = self._config['rros']['radiozoa']['enabled']
         self._roam_enabled     = self._config['rros']['roam']['enabled']
-        self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}'.format(self._radiozoa_enabled, self._roam_enabled) + Style.RESET_ALL)
+        self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}'.format(
+            self._radiozoa_enabled, self._roam_enabled) + Style.RESET_ALL)
         self.pixel = pixel
         self._ring = ring
         self._message_bus = MessageBus(level=level)
@@ -60,7 +61,15 @@ class RROS:
         self._radiozoa   = None
         self._roam       = None
         self.devices     = []
-        # create device configurations ┈┈┈┈┈┈┈
+        if self._ring is not None:
+            from ring_visualiser import RingVisualiser
+            self._log.info('creating ring visualiser…')
+            self._visualiser = RingVisualiser(self._ring, self._message_bus, level=self._level)
+            self._visualiser.set_brightness(0.2)
+#           self._visualiser.set_brighten(True)
+        else:
+            self._visualiser = None
+        # create device configurations ┈┈┈┈┈┈┈┈┈┈┈
         for _dev_cfg in self._config['rros']['devices']:
             _device = Device(
                 _dev_cfg['index'],
@@ -73,7 +82,7 @@ class RROS:
             self.devices.append(_device)
         # configure sensor addresses synchronously before async loop starts
         self._log.info('configuring radiozoa…')
-        self._radiozoa_config = RadiozoaConfig(config=self._config, i2c=self._i2c, ring=self._ring, level=self._level)
+        self._radiozoa_config = RadiozoaConfig(config=self._config, i2c=self._i2c, visualiser=self._visualiser, level=self._level)
         self._radiozoa_config.configure(self.continue_init)
 
     def continue_init(self):
@@ -84,21 +93,13 @@ class RROS:
         self._log.info('creating publisher…')
         self._publisher = ToFPublisher(self._sensor, self._message_bus, level=self._level)
         self._log.info('creating motor controller…')
-        self._motor_ctrl = MotorController(config=self._config, ring=self._ring, level=self._level)
+        self._motor_ctrl = MotorController(config=self._config, visualiser=self._visualiser, level=self._level)
         if self._radiozoa_enabled:
             self._log.info('creating radiozoa behaviour…')
             self._radiozoa = Radiozoa(self._message_bus, self._motor_ctrl, level=self._level)
         self._log.info('creating roam behaviour…')
-        self._roam = Roam(self._config, self._message_bus, self._motor_ctrl, self._ring, level=self._level)
+        self._roam = Roam(self._config, self._message_bus, self._motor_ctrl, self._visualiser, level=self._level)
 
-        if self._ring is not None:
-            from ring_visualiser import RingVisualiser
-            self._log.info('creating ring visualiser…')
-            self._visualiser = RingVisualiser(self._ring, self._message_bus, level=self._level)
-            self._visualiser.set_brightness(0.0)
-            self._visualiser.set_brighten(True)
-        else:
-            self._visualiser = None
         self._log.info(Fore.GREEN + 'ready.' + Style.RESET_ALL)
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
