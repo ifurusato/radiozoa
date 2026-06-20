@@ -45,6 +45,7 @@ class MessageBus:
         '''
         Synchronously add a message to the FIFO queue.
         '''
+        self._log.info('publish: {}'.format(message))
         self._queue.append(message)
 
     def queue_size(self):

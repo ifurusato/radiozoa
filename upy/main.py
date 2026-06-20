@@ -10,13 +10,15 @@
 # modified: 2026-06-04
 
 import sys, os, gc, sys
+import asyncio
 import time
 
 from colors import *
 from logger import Logger, Level
+from pixel import Pixel
 from rros import RROS
 
-IS_TINYS3 = True # otherwise TinyPICO
+# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
 START_COUNT = 3
 
@@ -30,9 +32,9 @@ for mod in ['main']:
 def pre_blink():
     for i in range(START_COUNT):
         log.info('[{}/{}] starting…'.format(i + 1, START_COUNT))
-        _pixel.show_color(COLOR_DARK_CYAN)
+        _pixel.set_color(color=COLOR_DARK_CYAN)
         time.sleep_ms(50)
-        _pixel.show_color(COLOR_BLACK)
+        _pixel.set_color(color=COLOR_BLACK)
         time.sleep_ms(950)
 
 def print_sysinfo():
@@ -46,25 +48,26 @@ def print_sysinfo():
         (s[4] * s[1]) / 1024
     ))
 
+async def drive_callback():
+    log.info('drive callback…')
+
 # main ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
-_pixel = None
-if IS_TINYS3:
-    from s3_pixel import S3Pixel
-    _pixel = S3Pixel()
-else: # otherwise TinyPICO
-    from pico_pixel import PicoPixel
-    _pixel = PicoPixel()
+_priority   = 0.5
+_drive      = None
+_rros       = None
+_ring  = Pixel(pin=21, pixel_count=24, color_order='GRB', brightness=0.1)
+_pixel = Pixel(pin=48, pixel_count=1, color_order='GRB', brightness=0.1)
+# _pixel.rainbow_cycle(delay=0.01, steps=512)
 
-_rros = None
 try:
 
     pre_blink()
     print_sysinfo()
 
-    from pixel import Pixel
-    _ring = Pixel(pin=44, pixel_count=24, color_order='GRB', brightness=0.1)
-    _rros = RROS(_pixel, ring=_ring, level=Level.INFO)
+    _rros  = RROS(_pixel, ring=_ring, level=Level.INFO)
+#   _drive = _rros.drive
+#   _drive.set_ready_callback(drive_callback)
     # blocks until completion
     _rros.start()
 
@@ -76,6 +79,7 @@ except Exception as e:
 finally:
     if _rros:
         _rros.close()
+    _ring.close()
     _pixel.close()
 
 #EOF

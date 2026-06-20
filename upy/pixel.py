@@ -7,15 +7,19 @@
 #
 # author:   Ichiro Furusato
 # created:  2025-05-23
-# modified: 2025-02-01
+# modified: 2026-06-20
 
 import time
 from machine import Pin
 from neopixel import NeoPixel
 from colors import Color
+from component import Component
+from logger import Logger, Level
 
-class Pixel:
-    def __init__(self, pin=None, pixel_count=1, color_order='GRB', brightness=0.33):
+class Pixel(Component):
+
+    def __init__(self, pin=None, pixel_count=1, color_order='GRB', brightness=0.33, level=Level.INFO):
+        Component.__init__(self, "pixel:{}".format(pixel_count), suppressed=False, enabled=True, level=level)
         if pin is None:
             raise ValueError('pin must be specified.')
         elif isinstance(pin, Pin):
@@ -29,6 +33,7 @@ class Pixel:
         self._brightness = brightness
         self._neopixel = NeoPixel(_pin, pixel_count, color_order=color_order, brightness=brightness)
         self.set_color(index=None, color=None)
+        self._log.info('ready.')
 
     @property
     def pixel_count(self):
@@ -39,6 +44,8 @@ class Pixel:
         return self._brightness
 
     def rainbow_cycle(self, delay=0.05, steps=-1):
+        if not self.enabled:
+            return
         step = 0
         while True:
             hue = (step % steps) / steps if steps != -1 else (step % 360) / 360
@@ -51,21 +58,30 @@ class Pixel:
                 break
 
     def set_color(self, index=None, color=None):
-        _index = self._pixel_index if index is None else index
-        if isinstance(color, Color):
-            self._neopixel[_index] = color.rgb
-        elif isinstance(color, tuple):
-            self._neopixel[_index] = color 
-        elif color is None:
-            self._neopixel[_index] = (0, 0, 0)
+        if self.enabled:
+            _index = self._pixel_index if index is None else index
+            if isinstance(color, Color):
+                self._neopixel[_index] = color.rgb
+            elif isinstance(color, tuple):
+                self._neopixel[_index] = color
+            elif color is None:
+                self._neopixel[_index] = (0, 0, 0)
+            else:
+                self._neopixel[_index] = color
+            self._neopixel.write()
         else:
-            self._neopixel[_index] = color
-        self._neopixel.write()
+            self._log.warning('not enabled.')
 
     def off(self):
         for i in range(self._pixel_count):
             self._neopixel[i] = (0, 0, 0)
         self._neopixel.write()
+
+    def close(self):
+        if not self.closed:
+            self.off()
+        else:
+            self._log.warning('already closed.')
 
     @staticmethod
     def hsv_to_rgb(h, s=1.0, v=1.0):

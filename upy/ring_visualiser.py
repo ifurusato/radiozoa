@@ -12,12 +12,18 @@
 from logger import Level
 from event import TOF_DISTANCES
 from subscriber import Subscriber
-from radiozoa_sensor import RadiozoaSensor, OUT_OF_RANGE
+#from radiozoa_sensor import RadiozoaSensor, OUT_OF_RANGE
 from pixel import Pixel
 from device import Device
 from colors import *
 
 class RingVisualiser(Subscriber):
+    # copies of RadiozoaSensor values
+    CLOSE_THRESHOLD = 100
+    NEAR_THRESHOLD  = 200
+    MID_THRESHOLD   = 600
+    FAR_THRESHOLD   = 1000
+    OUT_OF_RANGE    = 9999
     '''
     A subscriber that receives TOF_DISTANCES messages and maps each sensor
     distance to a colour on the NeoPixel ring using the device pixel positions
@@ -28,7 +34,7 @@ class RingVisualiser(Subscriber):
     :param level:        the logging level
     '''
     def __init__(self, ring, message_bus, level=Level.INFO):
-        Subscriber.__init__(self, 'ring-vis', message_bus, level)
+        Subscriber.__init__(self, 'visualiser', message_bus, level)
         self._ring = ring
         self.add_event(TOF_DISTANCES)
         self._use_enumerated_colors = False
@@ -71,15 +77,15 @@ class RingVisualiser(Subscriber):
         self._ring.set_color(pixel, self._color)
 
     def _distance_to_enumerated_color(self, distance):
-        if distance >= OUT_OF_RANGE:
+        if distance >= RingVisualiser.OUT_OF_RANGE:
             return COLOR_BLACK
-        elif distance <= RadiozoaSensor.CLOSE_THRESHOLD:
+        elif distance <= RingVisualiser.CLOSE_THRESHOLD:
             return COLOR_RED
-        elif distance <= RadiozoaSensor.NEAR_THRESHOLD:
+        elif distance <= RingVisualiser.NEAR_THRESHOLD:
             return COLOR_ORANGE
-        elif distance <= RadiozoaSensor.MID_THRESHOLD:
+        elif distance <= RingVisualiser.MID_THRESHOLD:
             return COLOR_YELLOW
-        elif distance <= RadiozoaSensor.FAR_THRESHOLD:
+        elif distance <= RingVisualiser.FAR_THRESHOLD:
             return COLOR_GREEN
         elif distance <= 2000:
             return COLOR_CYAN
@@ -89,7 +95,7 @@ class RingVisualiser(Subscriber):
             return COLOR_BLACK
 
     def _distance_to_color(self, distance):
-        if distance >= OUT_OF_RANGE:
+        if distance >= RingVisualiser.OUT_OF_RANGE:
             return COLOR_BLACK
         d = min(max(distance, 0), 4000)
         hue = (d / 4000) * self._color_at_limit # 0.0=red through to 0.75=indigo

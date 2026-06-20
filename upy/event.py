@@ -59,5 +59,6 @@ class Event:
 
 TOF_DISTANCES = Event(0, 'tof',    priority=0.5)
 SYSTEM        = Event(1, 'system', priority=1.0)
+STARTUP       = Event(2, 'startup', priority=1.0)
 
 #EOF

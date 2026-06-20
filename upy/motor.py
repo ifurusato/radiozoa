@@ -26,16 +26,17 @@ class Motor(Component):
     The encoder pins are optional. If either is not supplied this will operate the motor
     in open loop mode with no feedback.
 
-    :param name:       identifier: 'port' or 'stbd'
-    :param in1_pin:    GPIO number for DRV8833 IN1 (forward PWM)
-    :param in2_pin:    GPIO number for DRV8833 IN2 (reverse PWM)
-    :param enc_a_pin:  GPIO number for encoder channel A (interrupt source)
-    :param enc_b_pin:  GPIO number for encoder channel B (direction reference)
-    :param freq:       PWM frequency in Hz (default 20000)
-    :param level:      the logging level
+    :param orientation:  Orientation.PORT or Orientation.STBD
+    :param in1_pin:      GPIO number for DRV8833 IN1 (forward PWM)
+    :param in2_pin:      GPIO number for DRV8833 IN2 (reverse PWM)
+    :param enc_a_pin:    GPIO number for encoder channel A (interrupt source)
+    :param enc_b_pin:    GPIO number for encoder channel B (direction reference)
+    :param freq:         PWM frequency in Hz (default 20000)
+    :param level:        the logging level
     '''
-    def __init__(self, name, in1_pin, in2_pin, enc_a_pin=None, enc_b_pin=None, freq=20000, level=Level.INFO):
-        Component.__init__(self, 'motor:{}'.format(name))
+    def __init__(self, orientation, in1_pin, in2_pin, enc_a_pin=None, enc_b_pin=None, freq=20000, level=Level.INFO):
+        self._orientation = orientation
+        Component.__init__(self, 'motor:{}'.format(orientation.name), suppressed=False, enabled=False)
         self._steps = 0
         self._pwm1  = PWM(Pin(in1_pin),  freq=freq, duty_u16=0)
         self._pwm2  = PWM(Pin(in2_pin),  freq=freq, duty_u16=0)
@@ -51,10 +52,24 @@ class Motor(Component):
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
+    def enable(self):
+        if not self.enabled:
+            super().enable()
+            self._log.info('enabled.')
+        else:
+            self._log.warning('already enabled.')
+
+    def disable(self):
+        if self.enabled:
+            super().disable()
+            self._log.info('disabled.')
+        else:
+            self._log.warning('already disabled.')
+
     def _enc_irq(self, pin):
         '''
-        interrupt handler for encoder channel A (both edges).
-        direction determined by XOR of A and B pin states: when A≠B forward (+1), else reverse (-1).
+        Interrupt handler for encoder channel A (both edges).
+        Direction determined by XOR of A and B pin states: when A≠B forward (+1), else reverse (-1).
         '''
         if self._enc_a.value() ^ self._enc_b.value():
             self._steps += 1
@@ -68,8 +83,8 @@ class Motor(Component):
     @property
     def velocity(self):
         '''
-        returns normalised velocity in [-1.0, 1.0].
-        stubbed as 0.0 pending encoder calibration.
+        Returns normalised velocity in [-1.0, 1.0].
+        Stubbed as 0.0 pending encoder calibration.
         '''
         return 0.0
 
@@ -78,8 +93,13 @@ class Motor(Component):
 
     def set_power(self, value):
         '''
-        sets motor power in [-1.0, 1.0]. positive drives forward, negative reverse.
+        Sets motor power in [-1.0, 1.0]. positive drives forward, negative reverse.
         '''
+        if not self.enabled:
+            self._pwm1.duty_u16(0)
+            self._pwm2.duty_u16(0)
+#           self._log.warning('disabled: unable to set power.')
+            return
         if value >  1.0: value =  1.0
         elif value < -1.0: value = -1.0
         duty = int(abs(value) * 65535)
@@ -95,17 +115,19 @@ class Motor(Component):
 
     def brake(self):
         '''
-        active braking: both IN pins driven high.
+        Active braking: both IN pins driven high.
         '''
-        self._pwm1.duty_u16(65535)
-        self._pwm2.duty_u16(65535)
+        if self.enabled:
+            self._pwm1.duty_u16(65535)
+            self._pwm2.duty_u16(65535)
 
     def coast(self):
         '''
-        coast to stop: both IN pins low.
+        Coast to stop: both IN pins low.
         '''
-        self._pwm1.duty_u16(0)
-        self._pwm2.duty_u16(0)
+        if self.enabled:
+            self._pwm1.duty_u16(0)
+            self._pwm2.duty_u16(0)
 
     def close(self):
         if not self.closed:
@@ -114,5 +136,8 @@ class Motor(Component):
             self._pwm2.deinit()
             Component.close(self)
             self._log.info('closed.')
+        else:
+            self._log.warning('already closed.')
+
 
 #EOF

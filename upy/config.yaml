@@ -3,27 +3,32 @@
 rros:
     i2c:
         id:                    1
-        scl:                   9
-        sda:                   8
+        scl:                  38
+        sda:                  18
         baud_rate:       400_000
     analog_control:
-        pin:                   5
+        pin:                   5       # analog 2 is 7
         deadband:              0.05
-    roam:
+    drive:
         enabled:            True
+        startup_delay:         3       # in seconds
+        pin_analog:           22
+    roam:
+        enabled:           False
         pin_analog:           22
     radiozoa:
-        enabled:            True
+        enabled:           False
         check_configured:   True
     motor_controller:
-        pin_in1:              43
-        pin_in2:               6       # not exposed on PCB (test rig only)
-        pin_in3:              21
-        pin_in4:               0
-        pin_enc1A:          null       # 16 (WeAct ESP32)
-        pin_enc1B:          null       # 17
-        pin_enc2A:          null       #  2
-        pin_enc2B:          null       #  1
+        closed_loop:        True
+        pin_in1:               6
+        pin_in2:               4
+        pin_in3:              14
+        pin_in4:              12
+        pin_enc1A:             2
+        pin_enc1B:             1
+        pin_enc2A:            16
+        pin_enc2B:            17
         pin_port_pix1:         5       # visualise pixel pins (set None to disable)
         pin_port_pix2:         7       # ditto
         pin_stbd_pix1:        17       # ditto
@@ -35,48 +40,48 @@ rros:
         label:              "N0"       # red/grey
         address:            0x30
         pixel:                12
-        xshut:                37
+        xshut:                33
       - index:                 1
         impl:          "VL53L1X"
         label:             "NE1"       # red/white
         address:            0x31
         pixel:                15
-        xshut:                 1
+        xshut:                 8
       - index:                 2
         impl:          "VL53L1X"
         label:              "E2"       # green/grey
         address:            0x32
         pixel:                18
-        xshut:                36
+        xshut:                10
       - index:                 3
         impl:          "VL53L1X"
         label:             "SE3"       # green/white
         address:            0x33
         pixel:                21
-        xshut:                 2
+        xshut:                13
       - index:                 4
         impl:          "VL53L1X"
         label:              "S4"       # blue/grey
         address:            0x34
         pixel:                 0
-        xshut:                35
+        xshut:                15
       - index:                 5
         impl:          "VL53L1X"
         label:             "SW5"       # blue/white
         address:            0x35
         pixel:                 3
-        xshut:                 3
+        xshut:                11
       - index:                 6
         impl:          "VL53L1X"
         label:              "W6"       # grey
         address:            0x36
         pixel:                 6
-        xshut:                34
+        xshut:                 9
       - index:                 7
         impl:          "VL53L1X"
         label:             "NW7"       # white
         address:            0x37
         pixel:                 9
-        xshut:                 4
+        xshut:                34
 
 #EOF

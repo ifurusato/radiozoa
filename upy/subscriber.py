@@ -21,8 +21,16 @@ class Subscriber(Component):
     :param message_bus:  the message bus
     :param level:        the logging level
     '''
-    def __init__(self, name, message_bus, level=Level.INFO):
-        Component.__init__(self, name if ':' in name else 'sub:{}'.format(name))
+    def __init__(self, name, message_bus, suppressed=False, enabled=False, _init_base=True, level=Level.INFO):
+#       super().__init__(name if ':' in name else 'sub:{}'.format(name), suppressed=suppressed, enabled=enabled, level=level)
+        if _init_base:
+            Component.__init__(
+                self,
+                name=name if ':' in name else 'sub:{}'.format(name),
+                suppressed=suppressed,
+                enabled=enabled,
+                level=level
+            )
         self._message_bus = message_bus
         self._events      = []
         message_bus.add_subscriber(self)

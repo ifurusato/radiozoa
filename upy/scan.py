@@ -12,9 +12,9 @@ for mod in ['scan', 'i2c_scanner']:
 # create I2C bus ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
 print('configuring I2C bus…')
-_i2c_id    = 1
-_scl       =  9  # 22 on TinyPICO
-_sda       =  8  # 21 on TinyPICO
+_i2c_id    =  1
+_scl       = 38
+_sda       = 18
 _i2c_baud_rate = 400_000
 _i2c = I2C(_i2c_id, scl=_scl, sda=_sda, freq=_i2c_baud_rate)
 

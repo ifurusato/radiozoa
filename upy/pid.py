@@ -69,6 +69,7 @@ class PID:
         '''
         Compute and return the PID output for the given measured value.
         '''
+        print('_call:{}'.format(self._name))
         _now = time.ticks_ms()
         _dt  = time.ticks_diff(_now, self._last_time) / 1000.0
         if _dt <= 0.0:

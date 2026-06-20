@@ -20,9 +20,18 @@ class Publisher(Component):
     :param message_bus:  the message bus
     :param level:        the logging level
     '''
-    def __init__(self, name, message_bus, level=Level.INFO):
-        Component.__init__(self, 'pub:{}'.format(name))
+    def __init__(self, name, message_bus, message_factory, suppressed=False, enabled=False, _init_base=True, level=Level.INFO):
+#       super().__init__('pub:{}'.format(name), suppressed=suppressed, enabled=enabled, level=level)
+        if _init_base:
+            Component.__init__(
+                self,
+                name='pub:{}'.format(name),
+                suppressed=suppressed,
+                enabled=enabled,
+                level=level
+            )
         self._message_bus = message_bus
+        self._message_factory = message_factory
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 

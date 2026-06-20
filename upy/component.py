@@ -7,14 +7,20 @@
 #
 # author:   Ichiro Furusato
 # created:  2021-06-29
-# modified: 2026-06-04
+# modified: 2026-06-18
 
 from logger import Logger, Level
+from component_registry import ComponentRegistry
 
 class Component:
+    __registry = ComponentRegistry() # singleton
     '''
     A basic component providing enabled, suppressed and closed state flags.
     This is a simplification of the CPython version.
+
+    All Components are automatically added to the ComponentRegistry, which is
+    an alternative means of gaining access to them within the application, by
+    name.
 
     :param name:       the component name
     :param suppressed: initial suppressed state (default False)
@@ -23,13 +29,20 @@ class Component:
     def __init__(self, name, suppressed=False, enabled=False, level=Level.INFO):
         if name is None:
             raise ValueError('null name argument.')
+        super().__init__()
         self._name       = name
         self._log        = Logger(name, level)
         self._suppressed = suppressed
         self._enabled    = enabled
+        if not Component.__registry.has(self._log.name): # properly handle multiple inheritance
+            Component.__registry.add(self)
         self._closed     = False
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    @staticmethod
+    def get_registry():
+        return Component.__registry
 
     @property
     def name(self):
@@ -70,8 +83,8 @@ class Component:
             self._log.warn('already closed.')
 
     def disable(self):
-        self._log.info('disabled.')
         self._enabled = False
+        self._log.info('disabled.')
 
     def suppress(self):
         self._suppressed = True
@@ -81,10 +94,18 @@ class Component:
         self._suppressed = False
         self._log.info('released.')
 
+    @property
+    def classname(self):
+        '''
+        Return the name of this Component's class.
+        '''
+        return type(self).__name__
+
     def close(self):
         if not self._closed:
-            self._enabled = False
-            self._closed  = True
+            self.disable()
+            Component.__registry.deregister(self)
+            self._closed = True
             self._log.info('closed.')
         else:
             self._log.warn('already closed.')

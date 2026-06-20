@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-06-10
+# modified: 2026-06-20
 
 import asyncio
 
@@ -15,6 +15,7 @@ from colorama import Fore, Style
 
 from logger import Level
 from component import Component
+from orientation import Orientation
 from pixel import Pixel
 from motor import Motor
 from pid import PID
@@ -61,24 +62,35 @@ class MotorController(Component):
         self._pin_in3        = _cfg['pin_in3'] #  6
         self._pin_in4        = _cfg['pin_in4'] #  4
         # IN1: 43; IN2: 5; IN3: 21; IN4: 0
-        self._log.info(Fore.WHITE + 'IN1: {}; IN2: {}; IN3: {}; IN4: {}'.format(
-            self._pin_in1, self._pin_in2, self._pin_in3, self._pin_in4) + Style.RESET_ALL)
+        self._log.info('motor pins: in1={}; in2={}; in3={}; in4={}'.format(self._pin_in1, self._pin_in2, self._pin_in3, self._pin_in4))
         self._pin_enc1a      = _cfg['pin_enc1A'] # 16 (WeAct ESP32)
         self._pin_enc1b      = _cfg['pin_enc1B'] # 17
         self._pin_enc2a      = _cfg['pin_enc2A'] #  2
         self._pin_enc2b      = _cfg['pin_enc2B'] #  1
-        self._log.info(Fore.WHITE + 'ENC1A: {}; ENC1B: {}; ENC2A: {}; ENC2B: {}'.format(
-            self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b) + Style.RESET_ALL)
+        self._log.info('motor encoders: enc1A={}; enc1B={}; enc2A={}; enc2B={}'.format(self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b))
         # motors: port uses IN1/IN2 and ENC1; stbd uses IN3/IN4 and ENC2
-        self._motor_port     = Motor('port', self._pin_in1, self._pin_in2, self._pin_enc1a, self._pin_enc1b, level=level)
-        self._motor_stbd     = Motor('stbd', self._pin_in3, self._pin_in4, self._pin_enc2a, self._pin_enc2b, level=level)
+        self._motor_port     = Motor(Orientation.PORT, self._pin_in1, self._pin_in2, self._pin_enc1a, self._pin_enc1b, level=level)
+        self._motor_stbd     = Motor(Orientation.STBD, self._pin_in3, self._pin_in4, self._pin_enc2a, self._pin_enc2b, level=level)
         # PID controllers — gains are initial estimates pending tuning with hardware
-        self._pid_port       = PID('port', kp=0.8, ki=0.1, kd=0.05)
-        self._pid_stbd       = PID('stbd', kp=0.8, ki=0.1, kd=0.05)
+        self._pid_port       = PID(Orientation.PORT, kp=0.8, ki=0.1, kd=0.05)
+        self._pid_stbd       = PID(Orientation.STBD, kp=0.8, ki=0.1, kd=0.05)
         # intent vectors registry: name → (vx, vy, omega, priority)
         self._intent_vectors = {}
         # lateral gain: scales vx contribution into omega correction
         self._lateral_gain   = 0.5  # tune empirically
+        # get pixel ring if available
+        _registry = Component.get_registry()
+#       self._ring = _registry.get('pixel:24')
+#       if self._ring:
+#           self._log.info(Fore.WHITE + 'pixel ring available.')
+#       else:
+#           self._log.warning('no pixel ring available.')
+        if _registry and self._visualiser is None:
+            self._visualiser = _registry.get('visualiser')
+        if self._visualiser:
+            self._log.info(Fore.WHITE + 'ring visualiser available.')
+        else:
+            self._log.warning('no ring visualiser available.')
         # slew limits: max change per tick at 20Hz (≈ 1.0/sec for vy, 2.0/sec for omega)
         self._slew_vy        = 0.05
         self._slew_omega     = 0.10
@@ -108,6 +120,17 @@ class MotorController(Component):
     @lateral_gain.setter
     def lateral_gain(self, value):
         self._lateral_gain = value
+
+    def get_motor(self, orientation):
+        self._log.info(Fore.WHITE + "requesting {} motor.................".format(orientation.name) + Style.RESET_ALL)
+        if orientation is Orientation.PORT:
+            self._log.info(Fore.RED + "🍎 returning PORT motor." + Style.RESET_ALL)
+            return self._motor_port
+        elif orientation is Orientation.STBD:
+            self._log.info(Fore.GREEN + "🍏 returning STBD motor." + Style.RESET_ALL)
+            return self._motor_stbd
+        else:
+            raise ValueError('unsupported orientation.')
 
     def add_intent_vector(self, name, vector_lambda, priority_lambda):
         '''
@@ -165,10 +188,11 @@ class MotorController(Component):
 
     def _tick(self):
         '''
-        single control iteration: blend intent vectors, apply slew limiting,
+        Single control iteration: blend intent vectors, apply slew limiting,
         fold vx into omega, apply differential kinematics, drive motors,
         and update ring visualisation.
         '''
+#       self._log.info(Fore.BLUE + 'tick.' + Style.RESET_ALL)
         vx, vy, omega = self._blend_intent_vectors()
         # slew limiting
         vy    = self._slew(self._last_vy,    vy,    self._slew_vy)
@@ -251,28 +275,34 @@ class MotorController(Component):
         '''
         applies active braking to both motors and resets PID and slew state.
         '''
-        self._motor_port.brake()
-        self._motor_stbd.brake()
-        self._pid_port.reset()
-        self._pid_stbd.reset()
-        self._last_vy    = 0.0
-        self._last_omega = 0.0
+        if self.enabled:
+            self._motor_port.brake()
+            self._motor_stbd.brake()
+            self._pid_port.reset()
+            self._pid_stbd.reset()
+            self._last_vy    = 0.0
+            self._last_omega = 0.0
 
     def coast(self):
         '''
         coasts both motors to a stop.
         '''
-        self._motor_port.coast()
-        self._motor_stbd.coast()
+        if self.enabled:
+            self._motor_port.coast()
+            self._motor_stbd.coast()
 
     def enable(self):
         if not self.enabled:
+            self._motor_port.enable()
+            self._motor_stbd.enable()
             Component.enable(self)
             self._log.info('enabled.')
 
     def disable(self):
         if self.enabled:
             self.coast()
+            self._motor_port.disable()
+            self._motor_stbd.disable()
             Component.disable(self)
             self._log.info('disabled.')
 

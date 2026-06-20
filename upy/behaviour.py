@@ -22,8 +22,15 @@ class Behaviour(Subscriber):
     :param message_bus:  the message bus
     :param level:        the logging level
     '''
-    def __init__(self, name, message_bus, level=Level.INFO):
-        Subscriber.__init__(self, name if ':' in name else 'beh:{}'.format(name), message_bus, level)
+    def __init__(self, name, message_bus, _init_base=True, level=Level.INFO):
+#       Subscriber.__init__(self, name if ':' in name else 'beh:{}'.format(name), message_bus, level)
+        Subscriber.__init__(
+            self,
+            name=name if ':' in name else 'beh:{}'.format(name),
+            message_bus=message_bus,
+            level=level,
+            _init_base=_init_base
+        )
         self._intent_vector = (0.0, 0.0, 0.0)
         self._priority      = 0.0
 

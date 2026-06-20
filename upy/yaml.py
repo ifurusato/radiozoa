@@ -87,8 +87,8 @@ def parse(text):
                 val = val.strip()
                 val_obj = parse_value(val) if val != '' else {}
                 item_dict[key] = val_obj
-                # push the item dictionary context. 
-                # sub-keys at the same visual depth (+2 spaces from dash or aligned) 
+                # push the item dictionary context.
+                # sub-keys at the same visual depth (+2 spaces from dash or aligned)
                 # will match this structural level.
                 stack.append((indent, item_dict, True))
                 if val == '' and isinstance(val_obj, (dict, list)):
