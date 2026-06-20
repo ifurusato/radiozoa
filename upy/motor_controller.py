@@ -101,10 +101,14 @@ class MotorController(Component):
                 reverse_encoder=True,
                 level=level)
         # PID controllers ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._pid_port             = PID(name=Orientation.PORT.name, kp=0.06, ki=0.08, kd=0.0)
-        self._pid_stbd             = PID(name=Orientation.STBD.name, kp=0.06, ki=0.08, kd=0.0)
+        _pid_cfg = _cfg['pid']
+        _kp                        = _pid_cfg['kp']      # 0.25
+        _ki                        = _pid_cfg['ki']      # 0.18
+        _kd                        = _pid_cfg['kd']      # 0.003
+        self._pid_port             = PID(name=Orientation.PORT.name, kp= _kp, ki=_ki, kd=_kd)
+        self._pid_stbd             = PID(name=Orientation.STBD.name, kp= _kp, ki=_ki, kd=_kd)
         # feed-forward gain ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._kff                  = 0.175
+        self._kff                  = _pid_cfg['kff']     # 0.6, was 0.175
         # PID setpoints in mm/s ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._setpoint_port        = 0.0
         self._setpoint_stbd        = 0.0
@@ -127,8 +131,11 @@ class MotorController(Component):
         else:
             self._log.warn('no ring visualiser available.')
         # slew limits ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._slew_vy              = 0.20
-        self._slew_omega           = 0.20
+        _slew_cfg = _cfg['slew']
+        self._slew_vy              = _slew_cfg['vy']   # 0.20
+        self._slew_omega           = _slew_cfg['omega']   # 0.20
+#       self._slew_vy              = 0.20
+#       self._slew_omega           = 0.20
         self._last_vy              = 0.0
         self._last_omega           = 0.0
         # closed loop mode from config ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -279,7 +286,7 @@ class MotorController(Component):
         drive motors via PID (closed loop) or direct power (open loop),
         and update ring visualisation.
         '''
-        self._log.info('steps port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(self._motor_port.steps, self._motor_stbd.steps, self._velocity_port, self._velocity_stbd))
+#       self._log.info('steps port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(self._motor_port.steps, self._motor_stbd.steps, self._velocity_port, self._velocity_stbd))
         vx, vy, omega = self._blend_intent_vectors()
         # slew limiting
         vy    = self._slew(self._last_vy,    vy,    self._slew_vy)
@@ -329,6 +336,10 @@ class MotorController(Component):
             pwr_stbd = v_stbd
         self._motor_port.set_power(pwr_port)
         self._motor_stbd.set_power(pwr_stbd)
+        # odometry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._log.info('port: {:.1f}mm/s {:.1f}mm | stbd: {:.1f}mm/s {:.1f}mm'.format(
+                self._velocity_port, self._motor_port.get_distance_mm(),
+                self._velocity_stbd, self._motor_stbd.get_distance_mm()))
         # ring visualisation ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         if self._visualiser:
             if abs(v_port) < self._deadband:

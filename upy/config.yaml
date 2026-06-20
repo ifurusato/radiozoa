@@ -9,6 +9,29 @@ rros:
     analog_control:
         pin:                   5       # analog 2 is 7
         deadband:              0.05
+    motor_controller:
+        pid:
+            kp:                0.12
+            ki:                0.03
+            kd:                0.003
+            kff:               0.80
+        slew:
+            vy:                0.05
+            omega:             0.10
+        closed_loop:        True
+        pin_in1:               6       # port
+        pin_in2:               4       # port
+        pin_enc1A:            16       # port
+        pin_enc1B:            17       # stbd
+        pin_in3:              14       # stbd
+        pin_in4:              12       # stbd
+        pin_enc2A:             2       # stbd
+        pin_enc2B:             1       # stbd
+        pin_port_pix1:         5       # visualise pixel pins (set None to disable)
+        pin_port_pix2:         7       # ditto
+        pin_stbd_pix1:        17       # ditto
+        pin_stbd_pix2:        19       # ditto
+        period_ms:            50
     drive:
         enabled:            True
         startup_delay:         3       # in seconds
@@ -19,24 +42,6 @@ rros:
     radiozoa:
         enabled:           False
         check_configured:   True
-    motor_controller:
-        closed_loop:        True
-
-        pin_in1:               6       # port
-        pin_in2:               4       # port
-        pin_enc1A:            16       # port
-        pin_enc1B:            17       # stbd
-
-        pin_in3:              14       # stbd
-        pin_in4:              12       # stbd
-        pin_enc2A:             2       # stbd
-        pin_enc2B:             1       # stbd
-
-        pin_port_pix1:         5       # visualise pixel pins (set None to disable)
-        pin_port_pix2:         7       # ditto
-        pin_stbd_pix1:        17       # ditto
-        pin_stbd_pix2:        19       # ditto
-        period_ms:            50
     devices:
       - index:                 0
         impl:          "VL53L1X"

@@ -14,14 +14,14 @@ import itertools
 from math import sqrt
 from colorama import Fore, Style
 
-from analog_ctrl import AnalogControl
+from pixel import Pixel
+from colors import *
 from component import Component
+from logger import Level
+from event import STARTUP, TOF_DISTANCES
+from analog_ctrl import AnalogControl
 from behaviour import Behaviour
 from publisher import Publisher
-from event import STARTUP, TOF_DISTANCES
-from logger import Level
-from pixel import Pixel
-#from radiozoa_sensor import OUT_OF_RANGE
 
 OUT_OF_RANGE = 9999
 
@@ -46,8 +46,6 @@ class Drive(Behaviour, Publisher):
     _DEADBAND = 0.02
 
     def __init__(self, config=None, message_bus=None, message_factory=None, motor_controller=None, level=Level.INFO):
-#       Behaviour.__init__(self, 'drive', message_bus, level)
-#       Publisher.__init__(self, 'drive', message_bus, message_factory, level)
         Behaviour.__init__(
             self,
             name='drive',
@@ -68,7 +66,11 @@ class Drive(Behaviour, Publisher):
         _cfg = config['rros']['drive']
         self._motor_controller = motor_controller
         self._priority   = self._PRIORITY
+        self._verbose    = False
 #       self.add_event(TOF_DISTANCES)
+        # get pixel ┈┈┈┈┈┈┈┈┈┈
+        _registry = Component.get_registry()
+        self._pixel = _registry.get('pixel:1')
         # analog controller ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._pin_analog = _cfg['pin_analog']
         self._startup_delay = _cfg['startup_delay'] # in seconds
@@ -76,9 +78,11 @@ class Drive(Behaviour, Publisher):
         self._control    = AnalogControl(config)
         self._bias       = 0.0
         self._last_bias  = 0.0
+        # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._vx         = 0.0
         self._vy         = 0.0
         self._omega      = 0.0
+        self._last_scaled = 0.0
         # startup callback
         self._ready_callback = None
         self._enable_task = None
@@ -113,23 +117,24 @@ class Drive(Behaviour, Publisher):
         '''
         After the initial delay, this starts the behaviour.
         '''
-        self._log.info('😡 A. _start.')
+        self._log.info('_start.')
         # publish STARTUP via message bus
         self._message_bus.publish(self._message_factory.create_message(STARTUP))
         # enable motor controller and tick loop
-        self._log.info('😡 B. _start: enabled motor controller…')
+        self._log.info('_start: enabled motor controller…')
         self._motor_controller.enable()
-        self._log.info('😡 C. _start: start motor controller…')
+        self._log.info('_start: run motor controller loop…')
         asyncio.create_task(self._motor_controller._run())
         if self._ready_callback:
-            self._log.info('😡 D. _start: execute callback…')
+            self._log.info('_start: execute callback…')
             asyncio.create_task(self._ready_callback())
             self._ready_callback = None
         # print registry to console
         registry = Component.get_registry()
         registry.print_registry()
         asyncio.create_task(self._tick())
-        self._log.info('😡 E. _start: complete.')
+        self._pixel.set_color(color=COLOR_DARK_GREEN)
+        self._log.info('_start: complete.')
 
     async def _tick(self):
         while self.enabled:
@@ -138,15 +143,15 @@ class Drive(Behaviour, Publisher):
             scaled     = self._control.value
             # analog bias [-1.0, 1.0] is the requested speed and direction
             self._bias = round(self._control.value, 2)
-            if scaled == 0.0:
-#               self._log.info(Fore.BLACK + "tick() zero." + Style.RESET_ALL)
-                pass
-            else:
-                self._log.info("tick() raw: {}; percentage: {}; ".format(raw, percentage) 
-                        + Fore.GREEN
-                        + "scaled: {:0.2f}".format(scaled) 
-                        + Style.RESET_ALL)
+            if self._verbose and self._last_scaled != scaled:
+                if scaled == 0.0:
+                    self._log.info(Fore.BLACK + "tick() zero." + Style.RESET_ALL)
+                    pass
+                else:
+                    self._log.info("tick() raw: {}; percentage: {}; ".format(raw, percentage) 
+                            + Fore.GREEN + "scaled: {:0.2f}".format(scaled) + Style.RESET_ALL)
             self.set_vy(scaled)
+            self._last_scaled  = scaled
             await asyncio.sleep(0.334)
 
     # ................................................................

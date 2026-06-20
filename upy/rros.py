@@ -73,7 +73,6 @@ class RROS:
             self._log.info('🐟 no ring visualiser.')
             self._visualiser = None
 
-
         self._configure_radiozoa = False
         if self._configure_radiozoa:
 
@@ -124,6 +123,8 @@ class RROS:
 
         # simple test behaviour
         self._drive = Drive(config=self._config, message_bus=self._message_bus, message_factory=self._message_factory, motor_controller=self._motor_ctrl)
+        if self._pixel:
+            self._pixel.set_color(color=COLOR_TANGERINE)
         self._log.info(Fore.GREEN + 'ready.' + Style.RESET_ALL)
 
     # components-as-properties ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
