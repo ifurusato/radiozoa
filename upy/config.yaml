@@ -21,14 +21,17 @@ rros:
         check_configured:   True
     motor_controller:
         closed_loop:        True
-        pin_in1:               6
-        pin_in2:               4
-        pin_in3:              14
-        pin_in4:              12
-        pin_enc1A:             2
-        pin_enc1B:             1
-        pin_enc2A:            16
-        pin_enc2B:            17
+
+        pin_in1:               6       # port
+        pin_in2:               4       # port
+        pin_enc1A:            16       # port
+        pin_enc1B:            17       # stbd
+
+        pin_in3:              14       # stbd
+        pin_in4:              12       # stbd
+        pin_enc2A:             2       # stbd
+        pin_enc2B:             1       # stbd
+
         pin_port_pix1:         5       # visualise pixel pins (set None to disable)
         pin_port_pix2:         7       # ditto
         pin_stbd_pix1:        17       # ditto

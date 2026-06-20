@@ -41,7 +41,7 @@ class PushButton(Sensor):
             except Exception as e:
                 self._log.error('{} raised executing callback: {}'.format(type(e), e))
         else:
-            self._log.warning('no callback available.')
+            self._log.warn('no callback available.')
 
     def _debounce_handler(self, pin):
         '''
@@ -50,7 +50,7 @@ class PushButton(Sensor):
         if time.ticks_ms() > self._next_call:
             self._next_call = time.ticks_ms() + self._ms_ago
             if self.enabled:
-                self._log.info(Style.BRIGHT + '🍏 debounce handler triggered.')
+                self._log.info(Style.BRIGHT + 'debounce handler triggered.')
                 self._value = not self._value
                 if self._value:
                     self._log.info(Style.BRIGHT + 'PUSHBUTTON EVENT: value={}'.format(self._value))
@@ -58,9 +58,9 @@ class PushButton(Sensor):
                     self._log.info(Style.NORMAL + 'PUSHBUTTON EVENT: value={}'.format(self._value))
                 self._call_callback(pin)
             else:
-                self._log.warning('🍏 push button not enabled.')
+                self._log.warn('push button not enabled.')
         else:
-            self._log.info(Style.DIM + '🍏 debounce handler triggered.')
+            self._log.info(Style.DIM + 'debounce handler triggered.')
 
     @property
     def value(self):

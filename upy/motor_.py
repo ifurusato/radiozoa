@@ -27,7 +27,7 @@ class Motor:
         self._log = Logger('{} motor'.format(self._name), Level.INFO)
         self._channel = orientation.channel
         if board is None:
-            self._log.warning('no motor controller provided.')
+            self._log.warn('no motor controller provided.')
 #           raise ValueError('expected motor controller board argument.')
         self._board = board
         self._speed = 0 # initially stopped
@@ -46,7 +46,7 @@ class Motor:
         Set the speed of this motor to the argument.
         '''
         if self._board is None:
-            self._log.warning('no motor controller available.')
+            self._log.warn('no motor controller available.')
             return
         if speed is None:
             raise TypeError("null speed argument.")

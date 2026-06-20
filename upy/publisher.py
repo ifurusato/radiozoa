@@ -46,6 +46,6 @@ class Publisher(Component):
         if self.is_active:
             self._message_bus.publish(message)
         else:
-            self._log.warning('ignored: publisher not active.')
+            self._log.warn('ignored: publisher not active.')
 
 #EOF

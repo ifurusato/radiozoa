@@ -75,8 +75,10 @@ class PID:
             _dt = 0.001
         _error           = self._setpoint - measured
         _d_input         = measured - self._last_input
+#       self._integral  += self._ki * _error * _dt
+#       self._integral   = self._clip(self._integral)
         self._integral  += self._ki * _error * _dt
-        self._integral   = self._clip(self._integral)
+        self._integral   = max(min(self._integral, self._max_output * 0.5), self._min_output * 0.5)
         _derivative      = (-self._kd * _d_input / _dt) if _dt > 0.0 else 0.0
         _output          = self._clip(self._kp * _error + self._integral + _derivative)
         self._last_input = measured

@@ -90,7 +90,7 @@ class Drive(Behaviour, Publisher):
                 lambda: self._intent_vector,
                 lambda: self._priority)
         else:
-            self._log.warning('no motor controller available.')
+            self._log.warn('no motor controller available.')
         self._log.info('ready.')
 
     def enable(self):

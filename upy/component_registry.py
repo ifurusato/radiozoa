@@ -122,7 +122,7 @@ class ComponentRegistry:
                 self._log.info("removed component '{}' ({}) from registry ({} remaining).".format(name, removed.uuid, len(self._dict)))
             return removed
         else:
-            self._log.warning("cannot remove '{}'; not found in registry.".format(name))
+            self._log.warn("cannot remove '{}'; not found in registry.".format(name))
             return None
 
     def deregister(self, component):

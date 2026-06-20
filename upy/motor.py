@@ -46,9 +46,14 @@ class Motor(Component):
     :param reverse_encoder:  if True, negates encoder count direction
     :param level:            the logging level
     '''
-    def __init__(self, orientation, in1_pin=None, in2_pin=None,
-            enc_a_pin=None, enc_b_pin=None, freq=DEFAULT_FREQUENCY,
-            reverse_encoder=False, level=Level.INFO):
+    def __init__(self, orientation,
+            in1_pin=None,
+            in2_pin=None,
+            enc_a_pin=None,
+            enc_b_pin=None,
+            freq=DEFAULT_FREQUENCY,
+            reverse_encoder=False,
+            level=Level.INFO):
         self._orientation = orientation
         Component.__init__(self, 'motor:{}'.format(orientation.name), suppressed=False, enabled=False)
         # encoder direction
@@ -84,14 +89,14 @@ class Motor(Component):
                 self._log.info('enabled (open loop).')
             super().enable()
         else:
-            self._log.warning('already enabled.')
+            self._log.warn('already enabled.')
 
     def disable(self):
         if self.enabled:
             super().disable()
             self._log.info('disabled.')
         else:
-            self._log.warning('already disabled.')
+            self._log.warn('already disabled.')
 
     # encoder ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
@@ -143,6 +148,7 @@ class Motor(Component):
         '''
         Low-level PWM driver. value in [-1.0, 1.0].
         '''
+#       self._log.info('_execute_hardware_power: {}'.format(value))
         duty = int(abs(value) * 65535)
         if value > 0.0:
             self._pwm1.duty_u16(duty)
@@ -179,6 +185,6 @@ class Motor(Component):
             Component.close(self)
             self._log.info('closed.')
         else:
-            self._log.warning('already closed.')
+            self._log.warn('already closed.')
 
 #EOF

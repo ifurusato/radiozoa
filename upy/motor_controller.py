@@ -77,21 +77,29 @@ class MotorController(Component):
         self._pin_in2              = _cfg['pin_in2']
         self._pin_in3              = _cfg['pin_in3']
         self._pin_in4              = _cfg['pin_in4']
-        self._log.info('motor pins: in1={}; in2={}; in3={}; in4={}'.format(
+        self._log.info(Fore.WHITE + 'motor pins: in1={}; in2={}; in3={}; in4={}'.format(
                 self._pin_in1, self._pin_in2, self._pin_in3, self._pin_in4))
         self._pin_enc1a            = _cfg['pin_enc1A']
         self._pin_enc1b            = _cfg['pin_enc1B']
         self._pin_enc2a            = _cfg['pin_enc2A']
         self._pin_enc2b            = _cfg['pin_enc2B']
-        self._log.info('motor encoders: enc1A={}; enc1B={}; enc2A={}; enc2B={}'.format(
+        self._log.info(Fore.WHITE + 'motor encoders: enc1A={}; enc1B={}; enc2A={}; enc2B={}'.format(
                 self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b))
         # motors ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._motor_port           = Motor(Orientation.PORT,
-                in1_pin=self._pin_in1, in2_pin=self._pin_in2,
-                enc_a_pin=self._pin_enc1a, enc_b_pin=self._pin_enc1b, level=level)
-        self._motor_stbd           = Motor(Orientation.STBD,
-                in1_pin=self._pin_in3, in2_pin=self._pin_in4,
-                enc_a_pin=self._pin_enc2a, enc_b_pin=self._pin_enc2b, level=level)
+        self._motor_port = Motor(
+                Orientation.PORT,
+                in1_pin=self._pin_in1,
+                in2_pin=self._pin_in2,
+                enc_a_pin=self._pin_enc1a,
+                enc_b_pin=self._pin_enc1b,
+                level=level)
+        self._motor_stbd = Motor(Orientation.STBD,
+                in1_pin=self._pin_in3,
+                in2_pin=self._pin_in4,
+                enc_a_pin=self._pin_enc2a,
+                enc_b_pin=self._pin_enc2b,
+                reverse_encoder=True,
+                level=level)
         # PID controllers ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._pid_port             = PID(name=Orientation.PORT.name, kp=0.06, ki=0.08, kd=0.0)
         self._pid_stbd             = PID(name=Orientation.STBD.name, kp=0.06, ki=0.08, kd=0.0)
@@ -117,10 +125,10 @@ class MotorController(Component):
         if self._visualiser:
             self._log.info(Fore.WHITE + 'ring visualiser available.')
         else:
-            self._log.warning('no ring visualiser available.')
+            self._log.warn('no ring visualiser available.')
         # slew limits ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._slew_vy              = 0.05
-        self._slew_omega           = 0.10
+        self._slew_vy              = 0.20
+        self._slew_omega           = 0.20
         self._last_vy              = 0.0
         self._last_omega           = 0.0
         # closed loop mode from config ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -219,12 +227,13 @@ class MotorController(Component):
         Sets the target velocity in mm/s for the specified motor(s).
         Use Orientation.PORT, Orientation.STBD, or Orientation.ALL.
         '''
+        _normalised = float(velocity_mms) / self._MAX_VELOCITY_MMS
+        if _normalised >  1.0: _normalised =  1.0
+        elif _normalised < -1.0: _normalised = -1.0
         if orientation is Orientation.PORT or orientation is Orientation.ALL:
-            self._setpoint_port = float(velocity_mms)
-            self._pid_port.setpoint = self._setpoint_port
+            self._pid_port.setpoint = _normalised
         if orientation is Orientation.STBD or orientation is Orientation.ALL:
-            self._setpoint_stbd = float(velocity_mms)
-            self._pid_stbd.setpoint = self._setpoint_stbd
+            self._pid_stbd.setpoint = _normalised
 
     def get_velocity(self, orientation):
         '''
@@ -270,6 +279,7 @@ class MotorController(Component):
         drive motors via PID (closed loop) or direct power (open loop),
         and update ring visualisation.
         '''
+        self._log.info('steps port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(self._motor_port.steps, self._motor_stbd.steps, self._velocity_port, self._velocity_stbd))
         vx, vy, omega = self._blend_intent_vectors()
         # slew limiting
         vy    = self._slew(self._last_vy,    vy,    self._slew_vy)
@@ -297,18 +307,19 @@ class MotorController(Component):
         _ticks_per_sec        = 1000.0 / self._period_ms
         self._velocity_port   = _delta_port * _ticks_per_sec * self._MM_PER_TICK
         self._velocity_stbd   = _delta_stbd * _ticks_per_sec * self._MM_PER_TICK
+#       self._log.info(Fore.MAGENTA + 'delta port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(_delta_port, _delta_stbd, self._velocity_port, self._velocity_stbd))
         # motor drive
         if self._closed_loop:
-            # scale normalised setpoints to mm/s and update PID setpoints
-            self._pid_port.setpoint = v_port * self._MAX_VELOCITY_MMS
-            self._pid_stbd.setpoint = v_stbd * self._MAX_VELOCITY_MMS
-            # feed-forward + PID output in mm/s, normalise to [-1.0, 1.0]
-            ff_port   = self._kff * self._pid_port.setpoint
-            ff_stbd   = self._kff * self._pid_stbd.setpoint
-            pid_port  = self._pid_port(self._velocity_port)
-            pid_stbd  = self._pid_stbd(self._velocity_stbd)
-            pwr_port  = (ff_port + pid_port) / self._MAX_VELOCITY_MMS
-            pwr_stbd  = (ff_stbd + pid_stbd) / self._MAX_VELOCITY_MMS
+            _norm_vel_port          = self._velocity_port / self._MAX_VELOCITY_MMS
+            _norm_vel_stbd          = self._velocity_stbd / self._MAX_VELOCITY_MMS
+            self._pid_port.setpoint = v_port
+            self._pid_stbd.setpoint = v_stbd
+            ff_port  = self._kff * v_port
+            ff_stbd  = self._kff * v_stbd
+            pid_port = self._pid_port(_norm_vel_port)
+            pid_stbd = self._pid_stbd(_norm_vel_stbd)
+            pwr_port = ff_port + pid_port
+            pwr_stbd = ff_stbd + pid_stbd
             if pwr_port >  1.0: pwr_port =  1.0
             elif pwr_port < -1.0: pwr_port = -1.0
             if pwr_stbd >  1.0: pwr_stbd =  1.0

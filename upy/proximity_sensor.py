@@ -30,7 +30,7 @@ class ProximitySensor(Sensor):
             self._log.info('proximity sensor callback…')
             self._callback(self._pin)
         else:
-            self._log.warning('proximity sensor callback disabled.')
+            self._log.warn('proximity sensor callback disabled.')
 
     @property
     def triggered(self):

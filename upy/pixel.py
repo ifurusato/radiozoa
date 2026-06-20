@@ -70,7 +70,7 @@ class Pixel(Component):
                 self._neopixel[_index] = color
             self._neopixel.write()
         else:
-            self._log.warning('not enabled.')
+            self._log.warn('not enabled.')
 
     def off(self):
         for i in range(self._pixel_count):
@@ -81,7 +81,7 @@ class Pixel(Component):
         if not self.closed:
             self.off()
         else:
-            self._log.warning('already closed.')
+            self._log.warn('already closed.')
 
     @staticmethod
     def hsv_to_rgb(h, s=1.0, v=1.0):
