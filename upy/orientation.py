@@ -40,4 +40,4 @@ class Orientation:
 # now instantiate our two orientations:
 Orientation.PORT = Orientation("PORT", "port", 1)
 Orientation.STBD = Orientation("STBD", "starboard", 2)
-
+Orientation.ALL  = Orientation("ALL", "all", 3)

@@ -26,83 +26,110 @@ class MotorController(Component):
     Owns the two drive motors (port and starboard) and their PID controllers.
     Blends registered intent vectors from Behaviours by priority weighting,
     applies slew limiting, folds lateral intent (vx) into rotation via
-    lateral_gain, then drives the motors using differential kinematics:
+    lateral_gain, then drives the motors.
 
-        V_port = vy + omega_final
-        V_stbd = vy - omega_final
-        omega_final = omega + lateral_gain × vx
+    In closed loop mode, blended normalised values are scaled to mm/s and
+    fed to per-motor PID controllers whose output is passed to Motor.set_power().
+    In open loop mode, normalised values are passed directly to Motor.set_power().
 
-    When _closed_loop is False (default until encoders are calibrated), encoder
-    feedback is bypassed and target speed is mapped directly to motor power.
+    Velocity is measured from encoder step deltas each tick. SI unit commands
+    and odometry queries are available via set_linear_velocity() and
+    get_distance_mm() using Orientation to select port, starboard, or both.
 
     Intended to be run as an asyncio task via _run(), registered by RROS.
 
+    :param config:       the configuration dict
     :param visualiser:   optional NeoPixel ring for motor speed visualisation
     :param level:        the logging level
     '''
+    # wheel geometry and encoder constants (must match Motor)
+    _WHEEL_DIAMETER_MM = 59.0
+    _ENCODER_CPR       = 121.12
+    _CIRCUMFERENCE     = 3.14159265 * _WHEEL_DIAMETER_MM
+    _MM_PER_TICK       = _CIRCUMFERENCE / _ENCODER_CPR
+    _TICKS_PER_MM      = _ENCODER_CPR / _CIRCUMFERENCE
+    # closed-loop operating boundaries in cps
+    _MIN_CPS           = 50.0
+    _MAX_CPS           = 520.0
+    # maximum operational velocity in mm/s (corresponds to normalised 1.0)
+    _MAX_VELOCITY_MMS  = _MAX_CPS * _MM_PER_TICK
+    # integral clamp
+    _INTEGRAL_LIMIT    = 15.0
+
     def __init__(self, config=None, visualiser=None, level=Level.INFO):
         Component.__init__(self, MotorController.NAME)
         if config is None:
             raise TypeError('no configuration provided.')
         _cfg = config['rros']['motor_controller']
         self._visualiser           = visualiser
-        self._deadband       = config['rros']['analog_control']['deadband'] # 0.05
+        self._deadband             = config['rros']['analog_control']['deadband']
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._visualise_hue  = True # permit hue to be set
-        self._hue_angle      = 0.875 # red=0.0; orange=0.083; magenta=0.833; fuchsia=0.875, etc.
-        self._period_ms      = _cfg['period_ms']    # control loop period in ms (20Hz)
+        self._visualise_hue        = True
+        self._hue_angle            = 0.875
+        self._period_ms            = _cfg['period_ms']
         # ring pixels for motor speed visualisation ┈┈┈┈┈┈┈┈
-        self._pin_port_pix1  = _cfg['pin_port_pix1'] # 5
-        self._pin_port_pix2  = _cfg['pin_port_pix2'] # 7
-        self._pin_stbd_pix1  = _cfg['pin_stbd_pix1'] # 17
-        self._pin_stbd_pix2  = _cfg['pin_stbd_pix2'] # 19
+        self._pin_port_pix1        = _cfg['pin_port_pix1']
+        self._pin_port_pix2        = _cfg['pin_port_pix2']
+        self._pin_stbd_pix1        = _cfg['pin_stbd_pix1']
+        self._pin_stbd_pix2        = _cfg['pin_stbd_pix2']
         # motor pins ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._pin_in1        = _cfg['pin_in1'] # 14 (WeAct ESP32)
-        self._pin_in2        = _cfg['pin_in2'] # 12
-        self._pin_in3        = _cfg['pin_in3'] #  6
-        self._pin_in4        = _cfg['pin_in4'] #  4
-        # IN1: 43; IN2: 5; IN3: 21; IN4: 0
-        self._log.info('motor pins: in1={}; in2={}; in3={}; in4={}'.format(self._pin_in1, self._pin_in2, self._pin_in3, self._pin_in4))
-        self._pin_enc1a      = _cfg['pin_enc1A'] # 16 (WeAct ESP32)
-        self._pin_enc1b      = _cfg['pin_enc1B'] # 17
-        self._pin_enc2a      = _cfg['pin_enc2A'] #  2
-        self._pin_enc2b      = _cfg['pin_enc2B'] #  1
-        self._log.info('motor encoders: enc1A={}; enc1B={}; enc2A={}; enc2B={}'.format(self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b))
-        # motors: port uses IN1/IN2 and ENC1; stbd uses IN3/IN4 and ENC2
-        self._motor_port     = Motor(Orientation.PORT, self._pin_in1, self._pin_in2, self._pin_enc1a, self._pin_enc1b, level=level)
-        self._motor_stbd     = Motor(Orientation.STBD, self._pin_in3, self._pin_in4, self._pin_enc2a, self._pin_enc2b, level=level)
-        # PID controllers — gains are initial estimates pending tuning with hardware
-        self._pid_port       = PID(Orientation.PORT, kp=0.8, ki=0.1, kd=0.05)
-        self._pid_stbd       = PID(Orientation.STBD, kp=0.8, ki=0.1, kd=0.05)
-        # intent vectors registry: name → (vx, vy, omega, priority)
-        self._intent_vectors = {}
-        # lateral gain: scales vx contribution into omega correction
-        self._lateral_gain   = 0.5  # tune empirically
-        # get pixel ring if available
+        self._pin_in1              = _cfg['pin_in1']
+        self._pin_in2              = _cfg['pin_in2']
+        self._pin_in3              = _cfg['pin_in3']
+        self._pin_in4              = _cfg['pin_in4']
+        self._log.info('motor pins: in1={}; in2={}; in3={}; in4={}'.format(
+                self._pin_in1, self._pin_in2, self._pin_in3, self._pin_in4))
+        self._pin_enc1a            = _cfg['pin_enc1A']
+        self._pin_enc1b            = _cfg['pin_enc1B']
+        self._pin_enc2a            = _cfg['pin_enc2A']
+        self._pin_enc2b            = _cfg['pin_enc2B']
+        self._log.info('motor encoders: enc1A={}; enc1B={}; enc2A={}; enc2B={}'.format(
+                self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b))
+        # motors ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._motor_port           = Motor(Orientation.PORT,
+                in1_pin=self._pin_in1, in2_pin=self._pin_in2,
+                enc_a_pin=self._pin_enc1a, enc_b_pin=self._pin_enc1b, level=level)
+        self._motor_stbd           = Motor(Orientation.STBD,
+                in1_pin=self._pin_in3, in2_pin=self._pin_in4,
+                enc_a_pin=self._pin_enc2a, enc_b_pin=self._pin_enc2b, level=level)
+        # PID controllers ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._pid_port             = PID(name=Orientation.PORT.name, kp=0.06, ki=0.08, kd=0.0)
+        self._pid_stbd             = PID(name=Orientation.STBD.name, kp=0.06, ki=0.08, kd=0.0)
+        # feed-forward gain ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._kff                  = 0.175
+        # PID setpoints in mm/s ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._setpoint_port        = 0.0
+        self._setpoint_stbd        = 0.0
+        # intent vectors registry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._intent_vectors       = {}
+        # lateral gain ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._lateral_gain         = 0.5
+        # step tracking for velocity measurement ┈┈┈┈┈┈┈┈┈┈┈┈
+        self._last_steps_port      = 0
+        self._last_steps_stbd      = 0
+        # measured velocities in mm/s ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._velocity_port        = 0.0
+        self._velocity_stbd        = 0.0
+        # visualiser ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         _registry = Component.get_registry()
-#       self._ring = _registry.get('pixel:24')
-#       if self._ring:
-#           self._log.info(Fore.WHITE + 'pixel ring available.')
-#       else:
-#           self._log.warning('no pixel ring available.')
         if _registry and self._visualiser is None:
             self._visualiser = _registry.get('visualiser')
         if self._visualiser:
             self._log.info(Fore.WHITE + 'ring visualiser available.')
         else:
             self._log.warning('no ring visualiser available.')
-        # slew limits: max change per tick at 20Hz (≈ 1.0/sec for vy, 2.0/sec for omega)
-        self._slew_vy        = 0.05
-        self._slew_omega     = 0.10
-        self._last_vy        = 0.0
-        self._last_omega     = 0.0
-        # when False, bypasses PID and maps target speed directly to motor power
-        self._closed_loop    = False
-        self._stop           = False
-#       self._diag_count     = 0 # temporary telemetry check
+        # slew limits ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._slew_vy              = 0.05
+        self._slew_omega           = 0.10
+        self._last_vy              = 0.0
+        self._last_omega           = 0.0
+        # closed loop mode from config ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._closed_loop          = _cfg['closed_loop']
+        self._stop                 = False
+        self._log.info('{} closed-loop mode.'.format('enabled' if self._closed_loop else 'disabled'))
         self._log.info('ready.')
 
-    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     @property
     def closed_loop(self):
@@ -122,15 +149,14 @@ class MotorController(Component):
         self._lateral_gain = value
 
     def get_motor(self, orientation):
-        self._log.info(Fore.WHITE + "requesting {} motor.................".format(orientation.name) + Style.RESET_ALL)
         if orientation is Orientation.PORT:
-            self._log.info(Fore.RED + "🍎 returning PORT motor." + Style.RESET_ALL)
             return self._motor_port
         elif orientation is Orientation.STBD:
-            self._log.info(Fore.GREEN + "🍏 returning STBD motor." + Style.RESET_ALL)
             return self._motor_stbd
         else:
-            raise ValueError('unsupported orientation.')
+            raise ValueError('unsupported orientation: use PORT or STBD.')
+
+    # intent vectors ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     def add_intent_vector(self, name, vector_lambda, priority_lambda):
         '''
@@ -158,7 +184,7 @@ class MotorController(Component):
         '''
         Priority-weighted blend of all registered intent vectors.
         Entries returning (0.0, 0.0, 0.0) are skipped so that inactive or
-        Non-contributing behaviours do not dilute the result.
+        non-contributing behaviours do not dilute the result.
         Returns a (vx, vy, omega) tuple.
         '''
         if not self._intent_vectors:
@@ -186,20 +212,71 @@ class MotorController(Component):
         elif diff < -max_change: return current - max_change
         return target
 
+    # SI unit interface ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def set_linear_velocity(self, orientation, velocity_mms):
+        '''
+        Sets the target velocity in mm/s for the specified motor(s).
+        Use Orientation.PORT, Orientation.STBD, or Orientation.ALL.
+        '''
+        if orientation is Orientation.PORT or orientation is Orientation.ALL:
+            self._setpoint_port = float(velocity_mms)
+            self._pid_port.setpoint = self._setpoint_port
+        if orientation is Orientation.STBD or orientation is Orientation.ALL:
+            self._setpoint_stbd = float(velocity_mms)
+            self._pid_stbd.setpoint = self._setpoint_stbd
+
+    def get_velocity(self, orientation):
+        '''
+        Returns the most recently measured velocity in mm/s for the specified motor.
+        '''
+        if orientation is Orientation.PORT:
+            return self._velocity_port
+        elif orientation is Orientation.STBD:
+            return self._velocity_stbd
+        else:
+            raise ValueError('unsupported orientation: use PORT or STBD.')
+
+    def get_distance_mm(self, orientation):
+        '''
+        Returns the net distance traveled in mm since last reset for the specified motor.
+        Use Orientation.PORT, Orientation.STBD, or Orientation.ALL (returns port value).
+        '''
+        if orientation is Orientation.PORT or orientation is Orientation.ALL:
+            return self._motor_port.get_distance_mm()
+        elif orientation is Orientation.STBD:
+            return self._motor_stbd.get_distance_mm()
+        else:
+            raise ValueError('unsupported orientation.')
+
+    def reset_odometry(self, orientation):
+        '''
+        Resets the odometry for the specified motor(s).
+        Use Orientation.PORT, Orientation.STBD, or Orientation.ALL.
+        '''
+        if orientation is Orientation.PORT or orientation is Orientation.ALL:
+            self._motor_port.reset_odometry()
+            self._last_steps_port = 0
+        if orientation is Orientation.STBD or orientation is Orientation.ALL:
+            self._motor_stbd.reset_odometry()
+            self._last_steps_stbd = 0
+
+    # control loop ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
     def _tick(self):
         '''
         Single control iteration: blend intent vectors, apply slew limiting,
-        fold vx into omega, apply differential kinematics, drive motors,
+        fold vx into omega, apply differential kinematics, measure velocity,
+        drive motors via PID (closed loop) or direct power (open loop),
         and update ring visualisation.
         '''
-#       self._log.info(Fore.BLUE + 'tick.' + Style.RESET_ALL)
         vx, vy, omega = self._blend_intent_vectors()
         # slew limiting
         vy    = self._slew(self._last_vy,    vy,    self._slew_vy)
         omega = self._slew(self._last_omega, omega, self._slew_omega)
         self._last_vy    = vy
         self._last_omega = omega
-        # fold lateral intent into rotation: ω_final = ω + lateral_gain × vx
+        # fold lateral intent into rotation
         omega_final = omega + self._lateral_gain * vx
         if omega_final >  1.0: omega_final =  1.0
         elif omega_final < -1.0: omega_final = -1.0
@@ -210,48 +287,49 @@ class MotorController(Component):
         elif v_port < -1.0: v_port = -1.0
         if v_stbd >  1.0: v_stbd =  1.0
         elif v_stbd < -1.0: v_stbd = -1.0
-        # motor drive: closed-loop uses PID with encoder feedback, open-loop passes directly
+        # velocity measurement from step deltas
+        _steps_port           = self._motor_port.steps
+        _steps_stbd           = self._motor_stbd.steps
+        _delta_port           = _steps_port - self._last_steps_port
+        _delta_stbd           = _steps_stbd - self._last_steps_stbd
+        self._last_steps_port = _steps_port
+        self._last_steps_stbd = _steps_stbd
+        _ticks_per_sec        = 1000.0 / self._period_ms
+        self._velocity_port   = _delta_port * _ticks_per_sec * self._MM_PER_TICK
+        self._velocity_stbd   = _delta_stbd * _ticks_per_sec * self._MM_PER_TICK
+        # motor drive
         if self._closed_loop:
-            self._pid_port.setpoint = v_port
-            self._pid_stbd.setpoint = v_stbd
-            self._pid_port.target   = self._motor_port.velocity
-            self._pid_stbd.target   = self._motor_stbd.velocity
-            pwr_port = self._pid_port()
-            pwr_stbd = self._pid_stbd()
+            # scale normalised setpoints to mm/s and update PID setpoints
+            self._pid_port.setpoint = v_port * self._MAX_VELOCITY_MMS
+            self._pid_stbd.setpoint = v_stbd * self._MAX_VELOCITY_MMS
+            # feed-forward + PID output in mm/s, normalise to [-1.0, 1.0]
+            ff_port   = self._kff * self._pid_port.setpoint
+            ff_stbd   = self._kff * self._pid_stbd.setpoint
+            pid_port  = self._pid_port(self._velocity_port)
+            pid_stbd  = self._pid_stbd(self._velocity_stbd)
+            pwr_port  = (ff_port + pid_port) / self._MAX_VELOCITY_MMS
+            pwr_stbd  = (ff_stbd + pid_stbd) / self._MAX_VELOCITY_MMS
+            if pwr_port >  1.0: pwr_port =  1.0
+            elif pwr_port < -1.0: pwr_port = -1.0
+            if pwr_stbd >  1.0: pwr_stbd =  1.0
+            elif pwr_stbd < -1.0: pwr_stbd = -1.0
         else:
             pwr_port = v_port
             pwr_stbd = v_stbd
         self._motor_port.set_power(pwr_port)
         self._motor_stbd.set_power(pwr_stbd)
-
-#       # telemetry check
-#       self._diag_count += 1
-#       if self._diag_count % 10 == 0:
-#           self._log.info(
-#               Fore.YELLOW
-#               + "KINEMATICS -> vy: {0:.2f} | v_port: {1:.2f} | v_stbd: {2:.2f}".format(vy, v_port, v_stbd)
-#               + Style.RESET_ALL
-#           )
-
-        # ring visualisation: hue encodes direction/type, value encodes power magnitude
+        # ring visualisation ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         if self._visualiser:
-            # PORT visualisation ┈┈┈┈┈┈┈┈┈┈┈┈
             if abs(v_port) < self._deadband:
                 rgb_port = (0, 0, 0)
             else:
-                # map [-1.0, 1.0] to [0.0, 0.5] (Red -> Green -> Cyan)
                 hue_port = (v_port + 1.0) / 4.0
-                brightness_port = abs(v_port)
-                rgb_port = Pixel.hsv_to_rgb(hue_port, 1.0, brightness_port)
-            # STBD visualisation ┈┈┈┈┈┈┈┈┈┈┈┈
+                rgb_port = Pixel.hsv_to_rgb(hue_port, 1.0, abs(v_port))
             if abs(v_stbd) < self._deadband:
                 rgb_stbd = (0, 0, 0)
             else:
-                # map [-1.0, 1.0] to [0.0, 0.5] (Red -> Green -> Cyan)
                 hue_stbd = (v_stbd + 1.0) / 4.0
-                brightness_stbd = abs(v_stbd)
-                rgb_stbd = Pixel.hsv_to_rgb(hue_stbd, 1.0, brightness_stbd)
-            # apply to pixels ┈┈┈┈┈┈┈┈┈┈┈┈
+                rgb_stbd = Pixel.hsv_to_rgb(hue_stbd, 1.0, abs(v_stbd))
             if self._pin_port_pix1:
                 self._visualiser.set_color(self._pin_port_pix1, rgb_port)
             if self._pin_port_pix2:
@@ -270,6 +348,8 @@ class MotorController(Component):
             if self.enabled and not self.suppressed:
                 self._tick()
             await asyncio.sleep_ms(self._period_ms)
+
+    # motor commands ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     def brake(self):
         '''
@@ -313,7 +393,6 @@ class MotorController(Component):
             self._motor_port.close()
             self._motor_stbd.close()
             if self._visualiser:
-                # clear pixels
                 self._visualiser.off(self._pin_port_pix1)
                 self._visualiser.off(self._pin_port_pix2)
                 self._visualiser.off(self._pin_stbd_pix1)
