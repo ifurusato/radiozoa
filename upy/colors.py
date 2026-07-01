@@ -16,7 +16,10 @@ class Color:
         self._name = name
         # normalize stored name: strip leading "COLOR_" and lowercase
         self._norm = name.lower().replace("color_", "").replace("_", " ")
-        self._rgb = rgb
+        self._rgb   = rgb
+        self._red   = rgb[0]
+        self._green = rgb[1]
+        self._blue  = rgb[2]
         Color._registry.append(self)
 
     @property
@@ -29,6 +32,18 @@ class Color:
     @property
     def rgb(self):
         return self._rgb
+
+    @property
+    def red(self):
+        return self._red
+
+    @property
+    def green(self):
+        return self._green
+
+    @property
+    def blue(self):
+        return self._blue
 
     def __getitem__(self, index):
         return self._rgb[index]
@@ -66,58 +81,63 @@ class Color:
                 return c
         return None
 
-COLOR_BLACK         = Color("COLOR_BLACK",        (  0,   0,   0))
-COLOR_WHITE         = Color("COLOR_WHITE",        (255, 255, 255))
-COLOR_RED           = Color("COLOR_RED",          (255,   0,   0))
-COLOR_GREEN         = Color("COLOR_GREEN",        (  0, 255,   0))
-COLOR_BLUE          = Color("COLOR_BLUE",         (  0,   0, 255))
-COLOR_CYAN          = Color("COLOR_CYAN",         (  0, 255, 255))
-COLOR_MAGENTA       = Color("COLOR_MAGENTA",      (255,   0, 255))
-COLOR_YELLOW        = Color("COLOR_YELLOW",       (250, 150,   0))
-COLOR_GREY          = Color("COLOR_GREY",         ( 40,  40,  40))
+COLOR_BLACK          = Color("COLOR_BLACK",        (  0,   0,   0))
+COLOR_WHITE          = Color("COLOR_WHITE",        (255, 255, 255))
+COLOR_RED            = Color("COLOR_RED",          (255,   0,   0))
+COLOR_GREEN          = Color("COLOR_GREEN",        (  0, 255,   0))
+COLOR_BLUE           = Color("COLOR_BLUE",         (  0,   0, 255))
+COLOR_CYAN           = Color("COLOR_CYAN",         (  0, 255, 255))
+COLOR_MAGENTA        = Color("COLOR_MAGENTA",      (255,   0, 255))
+COLOR_YELLOW         = Color("COLOR_YELLOW",       (250, 150,   0))
+COLOR_GREY           = Color("COLOR_GREY",         ( 40,  40,  40))
 
-COLOR_DARK_RED      = Color("COLOR_DARK_RED",     ( 22,   0,   0))
-COLOR_DARK_GREEN    = Color("COLOR_DARK_GREEN",   (  0,  24,   0))
-COLOR_DARK_BLUE     = Color("COLOR_DARK_BLUE",    (  0,   0,  32))
-COLOR_DARK_CYAN     = Color("COLOR_DARK_CYAN",    (  0,  28,  28))
-COLOR_DARK_MAGENTA  = Color("COLOR_DARK_MAGENTA", ( 28,   0,  28))
-COLOR_DARK_YELLOW   = Color("COLOR_DARK_YELLOW",  ( 50,  20,   0))
-COLOR_DARK_GREY     = Color("COLOR_DARK_GREY",    ( 10,  10,  10))
+COLOR_DARK_RED       = Color("COLOR_DARK_RED",     ( 22,   0,   0))
+COLOR_DARK_GREEN     = Color("COLOR_DARK_GREEN",   (  0,  24,   0))
+COLOR_DARK_BLUE      = Color("COLOR_DARK_BLUE",    (  0,   0,  32))
+COLOR_DARK_CYAN      = Color("COLOR_DARK_CYAN",    (  0,  28,  28))
+COLOR_DARK_MAGENTA   = Color("COLOR_DARK_MAGENTA", ( 28,   0,  28))
+COLOR_DARK_YELLOW    = Color("COLOR_DARK_YELLOW",  ( 50,  20,   0))
+COLOR_DARK_GREY      = Color("COLOR_DARK_GREY",    ( 10,  10,  10))
+COLOR_VERY_DARK_GREY = Color("COLOR_VERY_DARK_GREY", ( 9,  9,  9))
 
-COLOR_AMBER         = Color("COLOR_AMBER",        (255,  90,   0))
-COLOR_APPLE         = Color("COLOR_APPLE",        ( 80, 240,   0))
-COLOR_BANANA        = Color("COLOR_BANANA",       (190, 230,   0))
-COLOR_BROWN         = Color("COLOR_BROWN",        ( 22,  12,   0))
-COLOR_CORNFLOWER    = Color("COLOR_CORNFLOWER",   ( 60,  90, 142))
-COLOR_CUCUMBER      = Color("COLOR_CUCUMBER",     ( 22,  70,   0))
-COLOR_DEEP_CYAN     = Color("COLOR_DEEP_CYAN",    (  0,  11,  11))
-COLOR_DEEP_FUCHSIA  = Color("COLOR_DEEP_FUCHSIA", ( 80,  11,  36))
-COLOR_DEEP_GREEN    = Color("COLOR_DEEP_GREEN",   (  0,  11,   0))
-COLOR_EMERALD       = Color("COLOR_EMERALD",      (  0,  90,  10))
-COLOR_FUCHSIA       = Color("COLOR_FUCHSIA",      (158,  16,  99))
-COLOR_INDIGO        = Color("COLOR_INDIGO",       (  0,  16,  50))
-COLOR_LAVENDER      = Color("COLOR_LAVENDER",     ( 24,  11, 130))
-COLOR_MEDIUM_CYAN   = Color("COLOR_MEDIUM_CYAN",  (  0, 128, 128))
-COLOR_MELON         = Color("COLOR_MELON",        ( 40, 110,  11))
-COLOR_MIDNIGHT      = Color("COLOR_MIDNIGHT",     (  0,  11,  18))
-COLOR_MUSTARD       = Color("COLOR_MUSTARD",      ( 11,  11,   0))
-COLOR_ORANGE        = Color("COLOR_ORANGE",       (240,  53,   0))
-COLOR_PEAR          = Color("COLOR_PEAR",         ( 70, 100,   0))
-COLOR_PERSIMMON     = Color("COLOR_PERSIMMON",    ( 90,  11,   0))
-COLOR_PINK          = Color("COLOR_PINK",         (255,  50,  40))
-COLOR_PURPLE        = Color("COLOR_PURPLE",       ( 14,   0,  56))
-COLOR_ROBIN         = Color("COLOR_ROBIN",        (  0,  70,  40))
-COLOR_SKY_BLUE      = Color("COLOR_SKY_BLUE",     (  9,  25, 190))
-COLOR_TANGERINE     = Color("COLOR_TANGERINE",    (100,  20,   0))
-COLOR_VIOLET        = Color("COLOR_VIOLET",       (138,  43, 226))
+COLOR_AMBER          = Color("COLOR_AMBER",        (255,  90,   0))
+COLOR_APPLE          = Color("COLOR_APPLE",        ( 80, 240,   0))
+COLOR_YELLOW_GREEN   = Color("COLOR_YELLOW_GREEN", (147, 255,   0))
+COLOR_BANANA         = Color("COLOR_BANANA",       (190, 230,   0))
+COLOR_BROWN          = Color("COLOR_BROWN",        ( 22,  12,   0))
+COLOR_CORNFLOWER     = Color("COLOR_CORNFLOWER",   ( 60,  90, 142))
+COLOR_CUCUMBER       = Color("COLOR_CUCUMBER",     ( 22,  70,   0))
+COLOR_DEEP_CYAN      = Color("COLOR_DEEP_CYAN",    (  0,  11,  11))
+COLOR_DEEP_FUCHSIA   = Color("COLOR_DEEP_FUCHSIA", ( 80,  11,  36))
+COLOR_DEEP_GREEN     = Color("COLOR_DEEP_GREEN",   (  0,  11,   0))
+COLOR_EMERALD        = Color("COLOR_EMERALD",      (  0,  90,  10))
+COLOR_FUCHSIA        = Color("COLOR_FUCHSIA",      (158,  16,  99))
+COLOR_INDIGO         = Color("COLOR_INDIGO",       (  0,  16,  50))
+COLOR_LAVENDER       = Color("COLOR_LAVENDER",     ( 24,  11, 130))
+COLOR_MEDIUM_CYAN    = Color("COLOR_MEDIUM_CYAN",  (  0, 128, 128))
+COLOR_MELON          = Color("COLOR_MELON",        ( 40, 110,  11))
+COLOR_MIDNIGHT       = Color("COLOR_MIDNIGHT",     (  0,  11,  18))
+COLOR_MUSTARD        = Color("COLOR_MUSTARD",      ( 11,  11,   0))
+COLOR_ORANGE         = Color("COLOR_ORANGE",       (240,  53,   0))
+COLOR_PEAR           = Color("COLOR_PEAR",         ( 70, 100,   0))
+COLOR_PERSIMMON      = Color("COLOR_PERSIMMON",    ( 90,  11,   0))
+COLOR_CORAL          = Color("COLOR_CORAL",        (202,  48,  62))
+COLOR_PINK           = Color("COLOR_PINK",         (255,  50,  40))
+COLOR_PURPLE         = Color("COLOR_PURPLE",       ( 14,   0,  56))
+COLOR_BLUE_VIOLET    = Color("COLOR_BLUE_VIOLET",  ( 96,   0, 252))
+COLOR_ROBIN          = Color("COLOR_ROBIN",        (  0,  70,  40))
+COLOR_SKY_BLUE       = Color("COLOR_SKY_BLUE",     (  9,  25, 190))
+COLOR_TANGERINE      = Color("COLOR_TANGERINE",    (100,  20,   0))
+COLOR_VIOLET         = Color("COLOR_VIOLET",       (138,  43, 226))
+COLOR_GREY_ORANGE    = Color("COLOR_GREY_ORANGE",  (171,  96,  48))
 
-COLOR_GREY_0        = Color("COLOR_GREY_0",       ( 11,  11,  10))
-COLOR_GREY_1        = Color("COLOR_GREY_1",       ( 15,  15,  10))
-COLOR_GREY_2        = Color("COLOR_GREY_2",       ( 20,  20,  15))
-COLOR_GREY_3        = Color("COLOR_GREY_3",       ( 30,  30,  20))
-COLOR_GREY_4        = Color("COLOR_GREY_4",       ( 40,  40,  30))
-COLOR_GREY_5        = Color("COLOR_GREY_5",       ( 50,  50,  40))
-COLOR_GREY_6        = Color("COLOR_GREY_6",       ( 70,  70,  60))
-COLOR_GREY_7        = Color("COLOR_GREY_7",       (130, 130, 110))
+COLOR_GREY_0         = Color("COLOR_GREY_0",       ( 11,  11,  10))
+COLOR_GREY_1         = Color("COLOR_GREY_1",       ( 15,  15,  10))
+COLOR_GREY_2         = Color("COLOR_GREY_2",       ( 20,  20,  15))
+COLOR_GREY_3         = Color("COLOR_GREY_3",       ( 30,  30,  20))
+COLOR_GREY_4         = Color("COLOR_GREY_4",       ( 40,  40,  30))
+COLOR_GREY_5         = Color("COLOR_GREY_5",       ( 50,  50,  40))
+COLOR_GREY_6         = Color("COLOR_GREY_6",       ( 70,  70,  60))
+COLOR_GREY_7         = Color("COLOR_GREY_7",       (130, 130, 110))
 
 #EOF

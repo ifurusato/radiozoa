@@ -7,49 +7,19 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-06-20
+# modified: 2026-06-21
 
-import sys, os, gc, sys
-import asyncio
+import sys, os, gc
 import time
-from machine import Pin
 from colorama import Fore, Style
 
 from colors import *
 from logger import Logger, Level
+from orientation import Orientation
 from pixel import Pixel
 from rros import RROS
 
 # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-
-USE_ENCODERS = False
-
-if USE_ENCODERS:
-    # Pin configuration
-    p2  = Pin(2, Pin.IN, Pin.PULL_UP)
-    p1  = Pin(1, Pin.IN, Pin.PULL_UP)
-    p16 = Pin(16, Pin.IN, Pin.PULL_UP)
-    p17 = Pin(17, Pin.IN, Pin.PULL_UP)
-
-    def callback_2(p):
-        print(Fore.GREEN + "IRQ triggered on Pin 2" + Style.RESET_ALL)
-
-    def callback_1(p):
-        print(Fore.GREEN + "IRQ triggered on Pin 1" + Style.RESET_ALL)
-
-    def callback_16(p):
-        print(Fore.RED + "IRQ triggered on Pin 16" + Style.RESET_ALL)
-
-    def callback_17(p):
-        print(Fore.RED + "IRQ triggered on Pin 17" + Style.RESET_ALL)
-
-    # Attach interrupts for both falling and rising edges
-    p2.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=callback_2)
-    p1.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=callback_1)
-    p16.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=callback_16)
-    p17.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=callback_17)
-
-# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
 START_COUNT = 3
 
@@ -79,26 +49,17 @@ def print_sysinfo():
         (s[4] * s[1]) / 1024
     ))
 
-async def drive_callback():
-    log.info('drive callback…')
-
 # main ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
-_priority   = 0.5
-_drive      = None
-_rros       = None
-_ring  = Pixel(pin=21, pixel_count=24, color_order='GRB', brightness=0.1)
+_rros = None
 _pixel = Pixel(pin=48, pixel_count=1, color_order='GRB', brightness=0.1)
-# _pixel.rainbow_cycle(delay=0.01, steps=512)
 
 try:
 
     pre_blink()
     print_sysinfo()
 
-    _rros  = RROS(_pixel, ring=_ring, level=Level.INFO)
-#   _drive = _rros.drive
-#   _drive.set_ready_callback(drive_callback)
+    _rros = RROS(pixel=_pixel)
     # blocks until completion
     _rros.start()
 
@@ -110,13 +71,6 @@ except Exception as e:
 finally:
     if _rros:
         _rros.close()
-    _ring.close()
-    _pixel.close()
-    if USE_ENCODERS:
-        p2.irq(handler=None)
-        p1.irq(handler=None)
-        p16.irq(handler=None)
-        p17.irq(handler=None)
-    print("complete.")
+    log.info("complete.")
 
 #EOF

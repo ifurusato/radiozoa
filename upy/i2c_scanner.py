@@ -40,11 +40,11 @@ class I2CScanner:
             print(Fore.CYAN + 'I2C scan complete: ' + Fore.GREEN + '{} devices found.'.format(len(self._devices)) + Style.RESET_ALL)
         return self._devices
 
-    def has_hex_address(self, addr):
+    def has_hex_address(self, address):
         '''
         Returns True if a given address is in the scanned device list.
         '''
-        return addr in self._devices
+        return address in self._devices
 
     def i2cdetect(self, color=Fore.CYAN):
         '''

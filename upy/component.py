@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2021-06-29
-# modified: 2026-06-18
+# modified: 2026-07-01
 
 from logger import Logger, Level
 from component_registry import ComponentRegistry

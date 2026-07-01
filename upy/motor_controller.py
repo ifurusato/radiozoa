@@ -107,6 +107,10 @@ class MotorController(Component):
         _kd                        = _pid_cfg['kd']      # 0.003
         self._pid_port             = PID(name=Orientation.PORT.name, kp= _kp, ki=_ki, kd=_kd)
         self._pid_stbd             = PID(name=Orientation.STBD.name, kp= _kp, ki=_ki, kd=_kd)
+        self._callback             = None
+        self._condition            = True # or a lambda function
+        self._one_shot             = False
+        self._stopping             = False
         # feed-forward gain ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._kff                  = _pid_cfg['kff']     # 0.6, was 0.175
         # PID setpoints in mm/s ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -171,6 +175,18 @@ class MotorController(Component):
         else:
             raise ValueError('unsupported orientation: use PORT or STBD.')
 
+    def set_callback(self, callback=None, condition=True, one_shot=False):
+        '''
+        Sets a callback executed upon each tick.
+        If the condition is passed (as a lambda) it will be evaluated as a filter.
+        If one_shot is True it will only be executed once.
+        '''
+        if not callable(callback):
+            raise TypeError("cxpected a callback (callable)")
+        self._callback = callback
+        self._condition = condition
+        self._one_shot = one_shot
+
     # intent vectors ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     def add_intent_vector(self, name, vector_lambda, priority_lambda):
@@ -201,6 +217,10 @@ class MotorController(Component):
         Entries returning (0.0, 0.0, 0.0) are skipped so that inactive or
         non-contributing behaviours do not dilute the result.
         Returns a (vx, vy, omega) tuple.
+
+        Returns zeroes if the stopping flag is True. If it would return
+        zeroes, sets the stopping flag to False. This keeps the robot
+        stopped until all intent vectors stop trying to move the robot.
         '''
         if not self._intent_vectors:
             return (0.0, 0.0, 0.0)
@@ -218,6 +238,11 @@ class MotorController(Component):
             omega += vec[2] * p
             total_p += p
         if total_p == 0.0:
+            if self._stopping:
+                self.reset_odometry(Orientation.ALL)
+                self._stopping = False
+            return (0.0, 0.0, 0.0)
+        elif self._stopping:
             return (0.0, 0.0, 0.0)
         return (vx / total_p, vy / total_p, omega / total_p)
 
@@ -253,23 +278,40 @@ class MotorController(Component):
         else:
             raise ValueError('unsupported orientation: use PORT or STBD.')
 
+    def get_steps(self, orientation):
+        '''
+        Returns the step count since last reset for the specified motor. Use Orientation.PORT,
+        Orientation.STBD, or Orientation.ALL (returns a tuple of both values).
+        '''
+        if orientation is Orientation.PORT:
+            return self._motor_port.steps
+        elif orientation is Orientation.STBD:
+            return self._motor_stbd.steps
+        elif orientation is Orientation.ALL:
+            return self._motor_port.steps, self._motor_stbd.steps
+        else:
+            raise ValueError('unsupported orientation: {}'.format(orientation.name))
+
     def get_distance_mm(self, orientation):
         '''
-        Returns the net distance traveled in mm since last reset for the specified motor.
-        Use Orientation.PORT, Orientation.STBD, or Orientation.ALL (returns port value).
+        Returns the net distance traveled in mm since last reset for the specified motor. Use
+        Orientation.PORT, Orientation.STBD, or Orientation.ALL (returns a tuple of both values).
         '''
-        if orientation is Orientation.PORT or orientation is Orientation.ALL:
+        if orientation is Orientation.PORT:
             return self._motor_port.get_distance_mm()
         elif orientation is Orientation.STBD:
             return self._motor_stbd.get_distance_mm()
+        elif orientation is Orientation.ALL:
+            return self._motor_port.get_distance_mm(), self._motor_stbd.get_distance_mm()
         else:
-            raise ValueError('unsupported orientation.')
+            raise ValueError('unsupported orientation: {}'.format(orientation.name))
 
     def reset_odometry(self, orientation):
         '''
         Resets the odometry for the specified motor(s).
         Use Orientation.PORT, Orientation.STBD, or Orientation.ALL.
         '''
+        self._stopping = False
         if orientation is Orientation.PORT or orientation is Orientation.ALL:
             self._motor_port.reset_odometry()
             self._last_steps_port = 0
@@ -285,6 +327,9 @@ class MotorController(Component):
         fold vx into omega, apply differential kinematics, measure velocity,
         drive motors via PID (closed loop) or direct power (open loop),
         and update ring visualisation.
+
+        If a callback has been set it is executed at the end of this method.
+        If it is a one shot it is executed a single time.
         '''
 #       self._log.info('steps port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(self._motor_port.steps, self._motor_stbd.steps, self._velocity_port, self._velocity_stbd))
         vx, vy, omega = self._blend_intent_vectors()
@@ -337,9 +382,10 @@ class MotorController(Component):
         self._motor_port.set_power(pwr_port)
         self._motor_stbd.set_power(pwr_stbd)
         # odometry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._log.info('port: {:.1f}mm/s {:.1f}mm | stbd: {:.1f}mm/s {:.1f}mm'.format(
-                self._velocity_port, self._motor_port.get_distance_mm(),
-                self._velocity_stbd, self._motor_stbd.get_distance_mm()))
+        self._log.info('port: {:.1f}mm/s {:.1f}mm | stbd: {:.1f}mm/s {:.1f}mm; '.format(
+                self._velocity_port, self._motor_port.get_distance_mm(), 
+                self._velocity_stbd, self._motor_stbd.get_distance_mm()) 
+                + Fore.BLUE + 'port: {} steps, stbd: {} steps.'.format(self._motor_port.steps, self._motor_stbd.steps))
         # ring visualisation ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         if self._visualiser:
             if abs(v_port) < self._deadband:
@@ -360,6 +406,16 @@ class MotorController(Component):
                 self._visualiser.set_color(self._pin_stbd_pix1, rgb_stbd)
             if self._pin_stbd_pix2:
                 self._visualiser.set_color(self._pin_stbd_pix2, rgb_stbd)
+        if self._callback and self._condition():
+            self._log.info(Fore.WHITE + Style.BRIGHT + 'execute callback…')
+            if self._one_shot:
+                _callback = self._callback
+                self._callback = None
+                asyncio.create_task(_callback()) # asynchronous
+#               _callback() # synchronous
+            else:
+                asyncio.create_task(self._callback()) # asynchronous
+#               self._callback() # synchronous
 
     async def _run(self):
         '''
@@ -375,9 +431,10 @@ class MotorController(Component):
 
     def brake(self):
         '''
-        applies active braking to both motors and resets PID and slew state.
+        Applies active braking to both motors and resets PID and slew state.
         '''
         if self.enabled:
+            self._stopping = True
             self._motor_port.brake()
             self._motor_stbd.brake()
             self._pid_port.reset()
@@ -387,9 +444,10 @@ class MotorController(Component):
 
     def coast(self):
         '''
-        coasts both motors to a stop.
+        Coasts both motors to a stop.
         '''
         if self.enabled:
+            self._stopping = True
             self._motor_port.coast()
             self._motor_stbd.coast()
 

@@ -24,7 +24,7 @@ class PushButton(Sensor):
         # we made a bad assumption: not all sensors have an orientation so we pass any orientation
         super().__init__(Orientation.PORT) 
         if pin_number is None:
-            pin_number = 19 # default GPIO pin
+            pin_number = 35 # default GPIO pin
         self._log = Logger('pushbutton', level=Level.INFO)
         self._value    = False
         self._callback = callback

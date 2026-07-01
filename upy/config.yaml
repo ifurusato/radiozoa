@@ -40,7 +40,7 @@ rros:
         enabled:           False
         pin_analog:           22
     radiozoa:
-        enabled:           False
+        enabled:            True
         check_configured:   True
     devices:
       - index:                 0

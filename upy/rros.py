@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-06-18
+# modified: 2026-06-21
 
 from machine import I2C
 import asyncio
@@ -15,7 +15,9 @@ import asyncio
 from colorama import Fore, Style
 
 from colors import *
+from pixel import Pixel
 from config_loader import ConfigLoader
+from component import Component
 from logger import Logger, Level
 from message_bus import MessageBus
 from message_factory import MessageFactory
@@ -23,28 +25,37 @@ from motor_controller import MotorController
 from drive import Drive
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-class RROS:
+class RROS(Component):
+    NAME = 'rros'
     '''
     Radiozoa Robot Operating System. Configures sensors, constructs and wires
     all system components, and provides the main async run loop.
 
-    :param pixel:      the RGB LED instance for status indication
+    :param pixel:      optional RGB LED instance for status indication
     :param ring:       optional NeoPixel ring for sensor visualisation
     :param level:      the logging level
     '''
     def __init__(self, pixel=None, ring=None, level=Level.INFO):
-        self._log    = Logger('rros', level)
         self._level  = level
+        Component.__init__(self, RROS.NAME, suppressed=False, enabled=True, level=self._level)
+#       self._log    = Logger('rros', level)
         self._config = ConfigLoader.configure('config.yaml')
         self._radiozoa_enabled = self._config['rros']['radiozoa']['enabled']
         self._roam_enabled     = self._config['rros']['roam']['enabled']
         self._drive_enabled    = self._config['rros']['drive']['enabled']
         self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}; drive enabled? {}'.format(
             self._radiozoa_enabled, self._roam_enabled, self._drive_enabled) + Style.RESET_ALL)
-        self._pixel = pixel
-        self._ring  = ring
-        if self._ring:
-            self._ring.set_color(3, COLOR_BLUE)
+        # pixel and ring ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        if pixel:
+            self._pixel = pixel
+        else:
+            self._pixel = Pixel(pin=48, pixel_count=1, color_order='GRB', brightness=0.1)
+        if ring:
+            self._ring  = ring
+        else:
+            self._ring  = Pixel(pin=21, pixel_count=24, color_order='GRB', brightness=0.1)
+#       self._ring.set_color(3, COLOR_BLUE)
+        # message bus ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._message_bus = MessageBus(level=self._level)
         self._message_factory = MessageFactory(message_bus=self._message_bus, level=self._level)
         # create I2C bus ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -124,7 +135,7 @@ class RROS:
         # simple test behaviour
         self._drive = Drive(config=self._config, message_bus=self._message_bus, message_factory=self._message_factory, motor_controller=self._motor_ctrl)
         if self._pixel:
-            self._pixel.set_color(color=COLOR_TANGERINE)
+            self._pixel.set_color(color=COLOR_DARK_CYAN)
         self._log.info(Fore.GREEN + 'ready.' + Style.RESET_ALL)
 
     # components-as-properties ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -168,7 +179,6 @@ class RROS:
             asyncio.create_task(self._publisher.poll_loop())
 #       asyncio.create_task(self._motor_ctrl._run())
         self._log.info(Fore.GREEN + 'running…' + Style.RESET_ALL)
-
         # yield control to the event loop so scheduled tasks can begin execution
 #       await asyncio.sleep_ms(0)
         while True:
@@ -178,19 +188,25 @@ class RROS:
         asyncio.run(self.run())
 
     def close(self):
-        if self._visualiser:
-            self._visualiser.close()
-        if self._motor_ctrl:
-            self._motor_ctrl.close()
-        if self._publisher:
-            self._publisher.close()
-        if self._roam:
-            self._roam.close()
-        if self._radiozoa:
-            self._radiozoa.close()
-        if self._message_bus:
-            self._message_bus.close()
-        if self._ring:
-            self._ring.set_color(3, COLOR_BLACK)
+        if not self.closed:
+            if self._visualiser:
+                self._visualiser.close()
+            if self._motor_ctrl:
+                self._motor_ctrl.close()
+            if self._publisher:
+                self._publisher.close()
+            if self._roam:
+                self._roam.close()
+            if self._radiozoa:
+                self._radiozoa.close()
+            if self._message_bus:
+                self._message_bus.close()
+            if self._pixel:
+                self._pixel.close()
+            if self._ring:
+                self._ring.close()
+            super().close()
+        else:
+            self._log.warn('already closed.')
 
 #EOF

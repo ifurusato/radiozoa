@@ -10,6 +10,7 @@
 # modified: 2026-06-20
 
 from machine import Pin, PWM
+from colorama import Fore, Style
 
 from logger import Level
 from component import Component
@@ -26,8 +27,10 @@ class Motor(Component):
     Velocity measurement, PID control, and SI unit conversion are handled externally
     by MotorController.
 
-    Wheel Geometry: 59mm Diameter, 8mm Width (5908 Standard Wheel)
-    Encoder Resolution: 121.12 Counts Per Revolution (CPR)
+    Wheel geometry: nominally 59mm diameter (measured at 60mm), 8mm Width (5908 Standard Wheel)
+    70:1 gear ratio, N20 motors with encoder resolution: 121.12 Counts Per Revolution (CPR)
+
+    840 ticks per wheel rotation, 188.5mm / wheel revolution, 4454-4456 ticks per meter.
 
     +--------------------+---------------+---------------+------------------+
     | Metric             | Minimum Limit | Maximum Limit | Hardware Ceiling |
@@ -69,11 +72,17 @@ class Motor(Component):
                     in1_pin, in2_pin, enc_a_pin, enc_b_pin, freq))
         else:
             self._log.info('in1={}, in2={}, {}Hz (open loop)'.format(in1_pin, in2_pin, freq))
+
         # wheel geometry for odometry
-        _wheel_diameter_mm  = 59.0
-        _encoder_cpr        = 121.12
-        _circumference      = 3.14159265 * _wheel_diameter_mm
-        self._mm_per_tick   = _circumference / _encoder_cpr
+        _wheel_diameter_mm  = 60.0  # was: 59.0
+        _motor_encoder_cpr  = 12.0
+        _gear_ratio         = 70.0  # 70:1 gear reduction
+        # derived geometry for odometry
+        _ticks_per_wheel_rev = _motor_encoder_cpr * _gear_ratio  # 840.0
+        _circumference       = 3.14159265 * _wheel_diameter_mm
+        self._mm_per_tick    = _circumference / _ticks_per_wheel_rev
+        self._log.info(Fore.WHITE + 'odometry: {}mm/tick.'.format(self._mm_per_tick))
+
         # odometry
         self._steps         = 0
         self._log.info('ready.')
