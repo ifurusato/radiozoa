@@ -36,7 +36,8 @@ class MotorController(Component):
     and odometry queries are available via set_linear_velocity() and
     get_distance_mm() using Orientation to select port, starboard, or both.
 
-    Intended to be run as an asyncio task via _run(), registered by RROS.
+    Intended to be run as an asyncio task via _poll_loop(), called when enabled
+    by RROS.
 
     :param config:       the configuration dict
     :param visualiser:   optional NeoPixel ring for motor speed visualisation
@@ -57,13 +58,14 @@ class MotorController(Component):
     _INTEGRAL_LIMIT    = 15.0
 
     def __init__(self, config=None, visualiser=None, level=Level.INFO):
-        Component.__init__(self, MotorController.NAME)
+        Component.__init__(self, MotorController.NAME, suppressed=False, enabled=False, level=level)
         if config is None:
             raise TypeError('no configuration provided.')
         _cfg = config['rros']['motor_controller']
         self._visualiser           = visualiser
         self._deadband             = config['rros']['analog_control']['deadband']
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._verbose              = _cfg['verbose']
         self._visualise_hue        = True
         self._hue_angle            = 0.875
         self._period_ms            = _cfg['period_ms']
@@ -77,14 +79,15 @@ class MotorController(Component):
         self._pin_in2              = _cfg['pin_in2']
         self._pin_in3              = _cfg['pin_in3']
         self._pin_in4              = _cfg['pin_in4']
-        self._log.info(Fore.WHITE + 'motor pins: in1={}; in2={}; in3={}; in4={}'.format(
+        self._log.info('motor pins: in1={}; in2={}; in3={}; in4={}'.format(
                 self._pin_in1, self._pin_in2, self._pin_in3, self._pin_in4))
         self._pin_enc1a            = _cfg['pin_enc1A']
         self._pin_enc1b            = _cfg['pin_enc1B']
         self._pin_enc2a            = _cfg['pin_enc2A']
         self._pin_enc2b            = _cfg['pin_enc2B']
-        self._log.info(Fore.WHITE + 'motor encoders: enc1A={}; enc1B={}; enc2A={}; enc2B={}'.format(
+        self._log.info('motor encoders: enc1A={}; enc1B={}; enc2A={}; enc2B={}'.format(
                 self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b))
+        self._run_task = None
         # motors ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._motor_port = Motor(
                 Orientation.PORT,
@@ -117,6 +120,7 @@ class MotorController(Component):
         self._setpoint_port        = 0.0
         self._setpoint_stbd        = 0.0
         # intent vectors registry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._power_scaler         = _cfg['power_scaler'] 
         self._intent_vectors       = {}
         # lateral gain ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._lateral_gain         = 0.5
@@ -126,14 +130,20 @@ class MotorController(Component):
         # measured velocities in mm/s ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._velocity_port        = 0.0
         self._velocity_stbd        = 0.0
-        # visualiser ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        # hardware/visualiser ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._dip_switch = None
         _registry = Component.get_registry()
-        if _registry and self._visualiser is None:
-            self._visualiser = _registry.get('visualiser')
+        if _registry:
+            self._dip_switch = _registry.get('dip-switch')
+            if not self._dip_switch:
+                self._log.warn('no DIP switch available.')
+            if self._visualiser is None:
+                self._visualiser = _registry.get('visualiser')
         if self._visualiser:
-            self._log.info(Fore.WHITE + 'ring visualiser available.')
+            self._log.info('ring visualiser available.')
         else:
             self._log.warn('no ring visualiser available.')
+        self._log.info('maximum velocity: {}mm/s.'.format(self._MAX_VELOCITY_MMS))
         # slew limits ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         _slew_cfg = _cfg['slew']
         self._slew_vy              = _slew_cfg['vy']   # 0.20
@@ -166,6 +176,12 @@ class MotorController(Component):
     @lateral_gain.setter
     def lateral_gain(self, value):
         self._lateral_gain = value
+
+    def is_dip_enabled(self):
+        if self._dip_switch:
+            return self._dip_switch.get_switch(1)
+        else:
+            return True
 
     def get_motor(self, orientation):
         if orientation is Orientation.PORT:
@@ -260,11 +276,14 @@ class MotorController(Component):
         Use Orientation.PORT, Orientation.STBD, or Orientation.ALL.
         '''
         _normalised = float(velocity_mms) / self._MAX_VELOCITY_MMS
-        if _normalised >  1.0: _normalised =  1.0
+        if _normalised > 1.0: _normalised = 1.0
         elif _normalised < -1.0: _normalised = -1.0
+#       self._log.info(Fore.WHITE + Style.BRIGHT + 'set linear velocity {}; normalised: {}…'.format(velocity_mms, _normalised))
         if orientation is Orientation.PORT or orientation is Orientation.ALL:
+#           self._log.info(Fore.RED + 'set linear velocity {}; normalised: {}…'.format(velocity_mms, _normalised))
             self._pid_port.setpoint = _normalised
         if orientation is Orientation.STBD or orientation is Orientation.ALL:
+#           self._log.info(Fore.GREEN + 'set linear velocity {}; normalised: {}…'.format(velocity_mms, _normalised))
             self._pid_stbd.setpoint = _normalised
 
     def get_velocity(self, orientation):
@@ -331,7 +350,8 @@ class MotorController(Component):
         If a callback has been set it is executed at the end of this method.
         If it is a one shot it is executed a single time.
         '''
-#       self._log.info('steps port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(self._motor_port.steps, self._motor_stbd.steps, self._velocity_port, self._velocity_stbd))
+#       self._log.debug('tick: ' + Fore.BLACK + 'steps port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(
+#           self._motor_port.steps, self._motor_stbd.steps, self._velocity_port, self._velocity_stbd))
         vx, vy, omega = self._blend_intent_vectors()
         # slew limiting
         vy    = self._slew(self._last_vy,    vy,    self._slew_vy)
@@ -376,16 +396,23 @@ class MotorController(Component):
             elif pwr_port < -1.0: pwr_port = -1.0
             if pwr_stbd >  1.0: pwr_stbd =  1.0
             elif pwr_stbd < -1.0: pwr_stbd = -1.0
+
+            # scale power
+            pwr_port *= self._power_scaler
+            pwr_stbd *= self._power_scaler
+
         else:
             pwr_port = v_port
             pwr_stbd = v_stbd
+
         self._motor_port.set_power(pwr_port)
         self._motor_stbd.set_power(pwr_stbd)
         # odometry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._log.info('port: {:.1f}mm/s {:.1f}mm | stbd: {:.1f}mm/s {:.1f}mm; '.format(
-                self._velocity_port, self._motor_port.get_distance_mm(), 
-                self._velocity_stbd, self._motor_stbd.get_distance_mm()) 
-                + Fore.BLUE + 'port: {} steps, stbd: {} steps.'.format(self._motor_port.steps, self._motor_stbd.steps))
+        if self._verbose:
+            self._log.info('port: {:.1f}mm/s {:.1f}mm | stbd: {:.1f}mm/s {:.1f}mm; '.format(
+                    self._velocity_port, self._motor_port.get_distance_mm(), 
+                    self._velocity_stbd, self._motor_stbd.get_distance_mm()) 
+                    + Fore.BLUE + 'port: {} steps, stbd: {} steps.'.format(self._motor_port.steps, self._motor_stbd.steps))
         # ring visualisation ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         if self._visualiser:
             if abs(v_port) < self._deadband:
@@ -417,17 +444,35 @@ class MotorController(Component):
                 asyncio.create_task(self._callback()) # asynchronous
 #               self._callback() # synchronous
 
-    async def _run(self):
+    async def _poll_loop(self):
         '''
-        main asyncio coroutine, to be added as a task by RROS.
-        runs _tick() at period_ms intervals while enabled and not suppressed.
+        Main asyncio coroutine, to be added as a task by RROS.
+        Runs _tick() at period_ms intervals while enabled, not suppressed, and DIP switch 1 is enabled.
         '''
-        while not self._stop:
+        # pre-flight checks
+        if self.disabled:
+            self._log.warn('poll loop called while disabled.')
+        elif self.suppressed:
+            self._log.warn('poll loop called while suppressed.')
+        elif self._stop:
+            self._log.warn('poll loop called while stopped.')
+        elif not self.is_dip_enabled():
+            self._log.warn('poll loop called with DIP switch 1 disabled.')
+        elif self._motor_port.disabled or self._motor_stbd.disabled:
+            self._log.warn('poll loop called with motor(s) disabled.')
+        else:
+            self._log.info(Fore.GREEN + 'starting motor controller loop…')
+        while not self._stop and self.is_dip_enabled():
             if self.enabled and not self.suppressed:
                 self._tick()
             await asyncio.sleep_ms(self._period_ms)
 
     # motor commands ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def stop(self):
+        self._motor_port.set_power(0)
+        self._motor_stbd.set_power(0)
+        self._log.info('stopped.')
 
     def brake(self):
         '''
@@ -455,28 +500,37 @@ class MotorController(Component):
         if not self.enabled:
             self._motor_port.enable()
             self._motor_stbd.enable()
+            if self._run_task is None:
+                self._stop = False
+                self._run_task = asyncio.create_task(self._poll_loop())
+            else:
+                self._log.warn('run task already active.')
             Component.enable(self)
             self._log.info('enabled.')
+        else:
+            self._log.warn('already enabled.')
 
     def disable(self):
         if self.enabled:
-            self.coast()
-            self._motor_port.disable()
-            self._motor_stbd.disable()
-            Component.disable(self)
-            self._log.info('disabled.')
-
-    def close(self):
-        if not self.closed:
-            self._stop = True
-            self.coast()
-            self._motor_port.close()
-            self._motor_stbd.close()
             if self._visualiser:
                 self._visualiser.off(self._pin_port_pix1)
                 self._visualiser.off(self._pin_port_pix2)
                 self._visualiser.off(self._pin_stbd_pix1)
                 self._visualiser.off(self._pin_stbd_pix2)
+            self.coast()
+            self._motor_port.disable()
+            self._motor_stbd.disable()
+            self._stop = True
+            if self._run_task:
+#               self._run_task.cancel() # cannot cancel from same context
+                self._run_task = None
+            Component.disable(self)
+            self._log.info('disabled.')
+        else:
+            self._log.warn('already disabled.')
+
+    def close(self):
+        if not self.closed:
             Component.close(self)
             self._log.info('closed.')
 

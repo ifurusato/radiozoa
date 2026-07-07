@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2024-08-14
-# modified: 2026-03-02
+# modified: 2026-07-01
 
 class Color:
     _registry = []

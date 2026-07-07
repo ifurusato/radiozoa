@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-10
-# modified: 2026-06-10
+# modified: 2026-07-04
 
 import itertools
 from math import sqrt
@@ -53,7 +53,8 @@ class Roam(Behaviour):
         self._priority   = self._PRIORITY
         self.add_event(TOF_DISTANCES)
         # analog controller ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._pin_analog = _cfg['pin_analog']    # 22
+        self._pin_analog = _cfg['pin_analog'] # 22
+        self._verbose    = _cfg['verbose']
         self._counter    = itertools.count()
         self._control    = AnalogControl(config)
         self._bias       = 0.0
@@ -80,8 +81,9 @@ class Roam(Behaviour):
         self._bias = round(self._control.value, 2)
         self._visualiseBias()
         self._last_bias = self._bias
-
         if -self._DEADBAND < self._bias < self._DEADBAND:
+            if self._verbose:
+                self._log.info(Fore.BLUE + "vy: 0.0 (db)")
             return (0.0, 0.0, 0.0)
         # forward obstacle scaling only applies when moving forward
         if self._bias > 0.0:
@@ -99,6 +101,8 @@ class Roam(Behaviour):
             vy = self._bias
         if -self._DEADBAND < vy < self._DEADBAND:
             vy = 0.0
+        if self._verbose:
+            self._log.info(Fore.BLUE + "vy: {}".format(vy))
         return (0.0, vy, 0.0)
 
     def _visualiseBias(self):
@@ -110,13 +114,10 @@ class Roam(Behaviour):
         rgb_analog = Pixel.hsv_to_rgb(hue, 1.0, brightness)
         self._visualiser.set_color(self._pin_analog, rgb_analog)
         self._count = next(self._counter)
-        if self._bias != self._last_bias:
-            self._log.info("analog value: {}".format(self._bias))
-        elif self._count % 20 == 0:
-            self._log.info(
-                Fore.BLACK
-                + "analog value: {}".format(self._bias)
-                + Style.RESET_ALL
-            )
+        if self._count % 50 == 0:
+            if self._bias != self._last_bias:
+                self._log.info("analog value: {}".format(self._bias))
+            else:
+                self._log.info(Fore.BLACK + "analog value: {}".format(self._bias))
 
 #EOF

@@ -1,10 +1,14 @@
 # cleanup of source: VL53L0X Time of Flight for MicroPython by Kevin McAleer
 # https://github.com/kevinmcaleer/vl53l0x/tree/master
 # no extant license
+#
+# 2026-07-04: added read_async()
 
-from micropython import const
+import asyncio
 import ustruct
 import time
+
+from micropython import const
 from exceptions import TimeoutError
 
 _IO_TIMEOUT        = const(1000)
@@ -239,6 +243,28 @@ class VL53L0X():
             (0xFF, 0x00),
         )
         self._started = False
+
+    async def read_async(self):
+        if not self._started:
+            self._config(
+                (0x80, 0x01), (0xFF, 0x01), (0x00, 0x00), (0x91, self._stop_variable),
+                (0x00, 0x01), (0xFF, 0x00), (0x80, 0x00), (_SYSRANGE_START, 0x01),
+            )
+            for timeout in range(_IO_TIMEOUT):
+                if not self._register(_SYSRANGE_START) & 0x01:
+                    break
+                await asyncio.sleep_ms(1)
+            else:
+                raise TimeoutError()
+        for timeout in range(_IO_TIMEOUT):
+            if self._register(_RESULT_INTERRUPT_STATUS) & 0x07:
+                break
+            await asyncio.sleep_ms(1)
+        else:
+            raise TimeoutError()
+        value = self._register(_RESULT_RANGE_STATUS + 10, struct='>H')
+        self._register(_INTERRUPT_CLEAR, 0x01)
+        return value
 
     def read(self):
         if not self._started:

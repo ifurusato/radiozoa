@@ -9,7 +9,23 @@ rros:
     analog_control:
         pin:                   5       # analog 2 is 7
         deadband:              0.05
+    drive:
+        enabled:           False
+        startup_delay:         3       # in seconds
+        pin_analog:           22
+    roam:
+        enabled:            True
+        verbose:           False
+        pin_analog:           22
+    radiozoa:
+        enabled:            True
+        check_configured:   True
+    tof_publisher:
+        verbose:           False
     motor_controller:
+        enabled:            True
+        verbose:           False
+        closed_loop:        True
         pid:
             kp:                0.12
             ki:                0.03
@@ -18,13 +34,13 @@ rros:
         slew:
             vy:                0.05
             omega:             0.10
-        closed_loop:        True
-        pin_in1:               6       # port
-        pin_in2:               4       # port
+        power_scaler:        1.2       # scale power output to overcome weak vectors
+        pin_in1:              14       # port
+        pin_in2:              12       # port
         pin_enc1A:            16       # port
         pin_enc1B:            17       # stbd
-        pin_in3:              14       # stbd
-        pin_in4:              12       # stbd
+        pin_in3:               6       # stbd
+        pin_in4:               4       # stbd
         pin_enc2A:             2       # stbd
         pin_enc2B:             1       # stbd
         pin_port_pix1:         5       # visualise pixel pins (set None to disable)
@@ -32,16 +48,6 @@ rros:
         pin_stbd_pix1:        17       # ditto
         pin_stbd_pix2:        19       # ditto
         period_ms:            50
-    drive:
-        enabled:            True
-        startup_delay:         3       # in seconds
-        pin_analog:           22
-    roam:
-        enabled:           False
-        pin_analog:           22
-    radiozoa:
-        enabled:            True
-        check_configured:   True
     devices:
       - index:                 0
         impl:          "VL53L1X"

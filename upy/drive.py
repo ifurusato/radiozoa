@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-18
-# modified: 2026-06-20
+# modified: 2026-07-03
 
 import asyncio
 import itertools
@@ -80,7 +80,7 @@ class Drive(Behaviour, Publisher):
         self._distance_limit_mm = 4456.0 # 1m
         # motor control ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._intent_vector = (self._vx, self._vy, self._omega)
-        if self._motor_controller is not None:
+        if self._motor_controller:
             self._motor_controller.add_intent_vector(
                 'drive',
                 lambda: self._intent_vector,
@@ -148,12 +148,13 @@ class Drive(Behaviour, Publisher):
             _condition = self._step_limit_reached
         else:
             _condition = self._distance_limit_reached
-        self._motor_controller.set_callback(callback=self._limit_callback, condition=_condition, one_shot=True)
-        # enable motor controller and tick loop
-        self._log.info('_start: enabled motor controller…')
-        self._motor_controller.enable()
-        self._log.info('_start: run motor controller loop…')
-        asyncio.create_task(self._motor_controller._run())
+        if self._motor_controller:
+            self._motor_controller.set_callback(callback=self._limit_callback, condition=_condition, one_shot=True)
+            # enable motor controller and tick loop
+            self._log.info('_start: enabled motor controller…')
+            self._motor_controller.enable()
+            self._log.info('_start: run motor controller loop…')
+            asyncio.create_task(self._motor_controller._run())
         if self._ext_callback:
             self._log.info('_start: execute callback…')
             asyncio.create_task(self._ext_callback())

@@ -7,22 +7,22 @@
 #
 # author:   Ichiro Furusato
 # created:  2020-02-21
-# modified: 2026-06-04
+# modified: 2026-07-07
 
 class Event:
     '''
-    A pseudo-enum representing an event type, with a label and a default priority.
+    A pseudo-enum representing an event type, with a name and a default priority.
 
     :param id:       unique integer identifier
-    :param label:    human-readable label
+    :param name:     human-readable name
     :param priority: default priority, 0.0 (lowest) to 1.0 (highest)
     '''
     _registry = []
     _by_id    = {}
 
-    def __init__(self, id, label, priority=0.5):
+    def __init__(self, id, name, priority=0.5):
         self._id       = id
-        self._label    = label
+        self._name     = name
         self._priority = priority
         Event._registry.append(self)
         Event._by_id[id] = self
@@ -34,8 +34,8 @@ class Event:
         return self._id
 
     @property
-    def label(self):
-        return self._label
+    def name(self):
+        return self._name
 
     @property
     def priority(self):
@@ -52,13 +52,36 @@ class Event:
         return hash(self._id)
 
     def __repr__(self):
-        return 'Event({})'.format(self._label)
+        return 'Event({})'.format(self._name)
+
+    @classmethod
+    def by_name(cls, name):
+        '''
+        Looks up and returns an Event instance by its string name using the registry.
+
+        :param name: The string name of the event
+        :return: The matching Event instance, or None if not registered
+        '''
+        for event in cls._registry:
+            if event.name == name:
+                return event
+        return None
+
+    @staticmethod
+    def all():
+        return Event._registry
 
 # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 # event instances
 
-TOF_DISTANCES = Event(0, 'tof',    priority=0.5)
-SYSTEM        = Event(1, 'system', priority=1.0)
-STARTUP       = Event(2, 'startup', priority=1.0)
+FAILURE       = Event(0, 'failure', priority=1.0)
+STARTUP       = Event(1, 'startup', priority=1.0)
+TOF_DISTANCES = Event(2, 'tof',     priority=0.5)
+SYSTEM        = Event(3, 'system',  priority=1.0)
+RTC           = Event(4, 'rtc',     priority=1.0)
+BUTTON        = Event(5, 'button',  priority=1.0)
+RELAY         = Event(6, 'relay',   priority=1.0)
+SURVEY        = Event(7, 'survey',  priority=1.0)
+TOUCH         = Event(8, 'touch',   priority=1.0)
 
 #EOF

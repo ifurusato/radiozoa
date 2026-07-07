@@ -7,10 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2024-10-23
-# modified: 2026-07-01
-
-import time
-import random
+# modified: 2026-07-04
 
 from logger import Level, Logger
 from component import Component
@@ -45,32 +42,28 @@ class PalpebralMovement:
                 return member
         raise ValueError("'{:s}' is not a valid PalpebralMovement name.".format(name))
 
-PalpebralMovement.CLEAR = PalpebralMovement(1, "clear", "clear")
-PalpebralMovement.NORMAL = PalpebralMovement(2, "normal", "normal")
-PalpebralMovement.HAPPY = PalpebralMovement(3, "happy", "happy")
-PalpebralMovement.WINK = PalpebralMovement(4, "wink", "wink")
-PalpebralMovement.BLUSH = PalpebralMovement(5, "blush", "blush")
-PalpebralMovement.LOOP_PORT = PalpebralMovement(6, "look-port", "look_port")
-PalpebralMovement.LOOK_STBD = PalpebralMovement(7, "look-stbd", "look_stbd")
-PalpebralMovement.LOOK_UP = PalpebralMovement(8, "look-up", "look_up")
-PalpebralMovement.LOOK_DOWN = PalpebralMovement(9, "look-down", "look_down")
-PalpebralMovement.CONFUSED = PalpebralMovement(10, "confused", "confused")
-PalpebralMovement.SLEEPY = PalpebralMovement(11, "sleepy", "sleepy")
-PalpebralMovement.DRUGGED = PalpebralMovement(12, "drugged", "drugged")
-PalpebralMovement.SAD = PalpebralMovement(13, "sad", "sad")
-PalpebralMovement.BLANK = PalpebralMovement(14, "blank", "blank")
-PalpebralMovement.WOW = PalpebralMovement(15, "wow", "wow")
-PalpebralMovement.DEAD = PalpebralMovement(16, "dead", "dead")
+PalpebralMovement.CLEAR     = PalpebralMovement( 1, "clear", "clear")
+PalpebralMovement.NORMAL    = PalpebralMovement( 2, "normal", "normal")
+PalpebralMovement.HAPPY     = PalpebralMovement( 3, "happy", "happy")
+PalpebralMovement.WINK      = PalpebralMovement( 4, "wink", "wink")
+PalpebralMovement.BLUSH     = PalpebralMovement( 5, "blush", "blush")
+PalpebralMovement.LOOP_PORT = PalpebralMovement( 6, "look-port", "look_port")
+PalpebralMovement.LOOK_STBD = PalpebralMovement( 7, "look-stbd", "look_stbd")
+PalpebralMovement.LOOK_UP   = PalpebralMovement( 8, "look-up", "look_up")
+PalpebralMovement.LOOK_DOWN = PalpebralMovement( 9, "look-down", "look_down")
+PalpebralMovement.CONFUSED  = PalpebralMovement(10, "confused", "confused")
+PalpebralMovement.SLEEPY    = PalpebralMovement(11, "sleepy", "sleepy")
+PalpebralMovement.SAD       = PalpebralMovement(12, "sad", "sad")
+PalpebralMovement.BLANK     = PalpebralMovement(13, "blank", "blank")
+PalpebralMovement.DEAD      = PalpebralMovement(14, "dead", "dead")
 
 PalpebralMovement._ALL = [
     PalpebralMovement.CLEAR, PalpebralMovement.NORMAL, PalpebralMovement.HAPPY,
     PalpebralMovement.WINK, PalpebralMovement.BLUSH, PalpebralMovement.LOOP_PORT,
     PalpebralMovement.LOOK_STBD, PalpebralMovement.LOOK_UP, PalpebralMovement.LOOK_DOWN,
-    PalpebralMovement.CONFUSED, PalpebralMovement.SLEEPY, PalpebralMovement.DRUGGED,
-    PalpebralMovement.SAD, PalpebralMovement.BLANK, PalpebralMovement.WOW,
-    PalpebralMovement.DEAD
+    PalpebralMovement.CONFUSED, PalpebralMovement.SLEEPY, PalpebralMovement.SAD,
+    PalpebralMovement.BLANK, PalpebralMovement.DEAD
 ]
-
 
 class Eyeballs(Component):
     NAME = 'eyeballs'
@@ -100,10 +93,8 @@ class Eyeballs(Component):
             "look_down": self.look_down,
             "confused": self.confused,
             "sleepy": self.sleepy,
-            "drugged": self.drugged,
             "sad": self.sad,
             "blank": self.blank,
-            "wow": self.wow,
             "dead": self.dead
         }
         self._log.info('ready.')
@@ -209,26 +200,6 @@ class Eyeballs(Component):
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
         self._show()
 
-    def drugged(self):
-        self._log.debug('drugged…')
-        _eyeball = Eyeball.HAPPY
-        self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
-        self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._rgbmatrix.show()
-        time.sleep(2)
-        n = 128
-        for y in range(0, 5):
-            for x in range(0, 5):
-                if _eyeball.array[x][y] == 1:
-                    self._port_rgbmatrix.set_pixel(x, y, n, n, n)
-                    self._stbd_rgbmatrix.set_pixel(x, y, n, n, n)
-                else:
-                    self._port_rgbmatrix.set_pixel(x, y, 0, 0, 0)
-                    self._stbd_rgbmatrix.set_pixel(x, y, 0, 0, 0)
-            self._rgbmatrix.show()
-            time.sleep(0.03)
-        self._rgbmatrix.clear_all()
-
     def sad(self):
         self._log.debug('sad…')
         _eyeball = Eyeball.SAD
@@ -243,68 +214,12 @@ class Eyeballs(Component):
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
         self._show()
 
-    def wow(self, count=5):
-        self._log.debug('wow…')
-        from threading import Thread
-
-        self._thread = Thread(name='wow', target=self._wow, args=[count], daemon=True)
-        self._thread.start()
-
-    def _wow(self, count=5):
-        '''
-        Displays randomly-colored bulging eyes.
-        '''
-        _delay = 0.05
-        _colors = [
-            COLOR_RED, COLOR_GREEN, COLOR_BLUE, COLOR_CYAN, COLOR_MAGENTA, COLOR_YELLOW,
-            COLOR_TURQUOISE, COLOR_ORANGE, COLOR_VIOLET, COLOR_CORAL, COLOR_YELLOW_GREEN,
-            COLOR_TANGERINE, COLOR_FUCHSIA
-        ]
-        for _ in range(0, count):
-            self.set_matrix(Eyeball.WOW1.array, self._port_rgbmatrix, random.choice(_colors))
-            self.set_matrix(Eyeball.WOW1.array, self._stbd_rgbmatrix, random.choice(_colors))
-            self._show()
-            time.sleep(_delay)
-            self.set_matrix(Eyeball.WOW2.array, self._port_rgbmatrix, random.choice(_colors))
-            self.set_matrix(Eyeball.WOW2.array, self._stbd_rgbmatrix, random.choice(_colors))
-            self._show()
-            time.sleep(_delay)
-            self.set_matrix(Eyeball.WOW3.array, self._port_rgbmatrix, random.choice(_colors))
-            self.set_matrix(Eyeball.WOW3.array, self._stbd_rgbmatrix, random.choice(_colors))
-            self._show()
-            time.sleep(_delay)
-            self.set_matrix(Eyeball.WOW2.array, self._port_rgbmatrix, random.choice(_colors))
-            self.set_matrix(Eyeball.WOW2.array, self._stbd_rgbmatrix, random.choice(_colors))
-            self._show()
-            time.sleep(_delay)
-            self.set_matrix(Eyeball.WOW1.array, self._port_rgbmatrix, random.choice(_colors))
-            self.set_matrix(Eyeball.WOW1.array, self._stbd_rgbmatrix, random.choice(_colors))
-            self._show()
-            time.sleep(_delay)
-        time.sleep(1.0)
-        self._rgbmatrix.set_color(COLOR_BLACK)
-        self._rgbmatrix.clear_all()
-
-    def dead(self, include_fade=False):
+    def dead(self):
         self._log.debug('dead…')
         _eyeball = Eyeball.DEAD
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
         self._rgbmatrix.show()
-        time.sleep(2)
-        if include_fade:
-            for n in range(96, 0, -2):
-                for y in range(0, 5):
-                    for x in range(0, 5):
-                        if _eyeball.array[x][y] == 1:
-                            self._port_rgbmatrix.set_pixel(x, y, n, n, n)
-                            self._stbd_rgbmatrix.set_pixel(x, y, n, n, n)
-                        else:
-                            self._port_rgbmatrix.set_pixel(x, y, 0, 0, 0)
-                            self._stbd_rgbmatrix.set_pixel(x, y, 0, 0, 0)
-                self._rgbmatrix.show()
-                time.sleep(0.03)
-        self._rgbmatrix.clear_all()
 
     def look_port_fwd(self):
         self._log.debug('look forward to port…')

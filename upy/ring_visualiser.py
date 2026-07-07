@@ -18,6 +18,7 @@ from device import Device
 from colors import *
 
 class RingVisualiser(Subscriber):
+    NAME = 'visualiser'
     # copies of RadiozoaSensor values
     CLOSE_THRESHOLD = 100
     NEAR_THRESHOLD  = 200
@@ -34,11 +35,11 @@ class RingVisualiser(Subscriber):
     :param level:        the logging level
     '''
     def __init__(self, ring, message_bus, level=Level.INFO):
-        Subscriber.__init__(self, 'visualiser', message_bus, level)
+        Subscriber.__init__(self, RingVisualiser.NAME, message_bus, suppressed=False, enabled=False, level=Level.INFO)
         self._ring = ring
         self.add_event(TOF_DISTANCES)
         self._use_enumerated_colors = False
-        self._color_at_limit = 0.833 # 0.75 indigo; 0.833 magenta
+        self._color_at_limit  = 0.833 # 0.75 indigo; 0.833 magenta
         self._color           = [0, 0, 0]
         self._brightness      = 1.0
         self._brightness_step = 0.01
@@ -55,7 +56,7 @@ class RingVisualiser(Subscriber):
 
     async def process_message(self, message):
         distances = message.value
-        for device in Device._registry:
+        for device in Device.all():
             distance = distances[device.index]
             if self._use_enumerated_colors:
                 raw_color = self._distance_to_enumerated_color(distance)

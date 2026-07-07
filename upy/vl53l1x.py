@@ -51,6 +51,7 @@
 
 # load necessary modules:
 #-----------------------------------------------------------
+import asyncio
 import time
 from exceptions import TimeoutError
 
@@ -189,10 +190,43 @@ class VL53L1X:
         self._started = False
         return self._status
 
+    async def read_async(self):
+        '''
+        Asynchronously read distance in mm.
+        Waits for data to be ready without blocking the asyncio loop.
+        Auto-starts ranging if not already started.
+        
+        Returns:
+            int: distance in millimeters
+        '''
+        if not self._started:
+            # single-shot mode
+            self.start_ranging()
+            timeout = 0
+            while not self.check_for_data_ready():
+                await asyncio.sleep_ms(1)
+                timeout += 1
+                if timeout > 1000:
+                    raise TimeoutError()
+            distance = self.get_distance()
+            self.clear_interrupt()
+            self.stop_ranging()
+        else:
+            # continuous mode - wait for data ready
+            timeout = 0
+            while not self.check_for_data_ready():
+                await asyncio.sleep_ms(1)
+                timeout += 1
+                if timeout > 1000:
+                    raise TimeoutError()
+            distance = self.get_distance()
+            self.clear_interrupt()
+        return distance
+
     def read(self):
         '''
-        read distance in mm (compatible with VL53L0X API).
-        waits for data to be ready. auto-starts ranging if not already started.
+        Synchronously read distance in mm (compatible with VL53L0X API).
+        Waits for data to be ready. auto-starts ranging if not already started.
         
         Returns:
             int: distance in millimeters
@@ -219,7 +253,6 @@ class VL53L1X:
                     raise TimeoutError()
             distance = self.get_distance()
             self.clear_interrupt()
-        
         return distance
 
     # VL53L1X native methods ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -970,6 +1003,7 @@ class VL53L1X:
         '''
         platform implementation of ```WaitValueMaskEx``` V2WReg script command
         '''
+        print('🌺 __wait_value_mask_ex() BEGIN.')
         self._status     = _VL53L1_ERROR_NONE
         start_time_ms   = 0
         current_time_ms = 0

@@ -128,6 +128,7 @@ class ComponentRegistry:
     def deregister(self, component):
         for name, obj in list(self._dict.items()):
             if obj is component:
+                self._log.info(Fore.BLACK + "removing '{}' from registry…".format(name))
                 del self._dict[name]
                 return True
         return False

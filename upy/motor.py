@@ -81,7 +81,7 @@ class Motor(Component):
         _ticks_per_wheel_rev = _motor_encoder_cpr * _gear_ratio  # 840.0
         _circumference       = 3.14159265 * _wheel_diameter_mm
         self._mm_per_tick    = _circumference / _ticks_per_wheel_rev
-        self._log.info(Fore.WHITE + 'odometry: {}mm/tick.'.format(self._mm_per_tick))
+        self._log.info('odometry: {}mm/tick.'.format(self._mm_per_tick))
 
         # odometry
         self._steps         = 0
@@ -157,7 +157,7 @@ class Motor(Component):
         '''
         Low-level PWM driver. value in [-1.0, 1.0].
         '''
-#       self._log.info('_execute_hardware_power: {}'.format(value))
+#       self._log.debug('_execute_hardware_power: {}'.format(value))
         duty = int(abs(value) * 65535)
         if value > 0.0:
             self._pwm1.duty_u16(duty)

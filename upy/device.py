@@ -5,9 +5,9 @@
 # of the Robot Operating System project, released under the MIT License. Please
 # see the LICENSE file included as part of this package.
 #
-# author:   Murray Altheim
+# author:  Murray Altheim
 # created:  2026-01-27
-# modified: 2026-06-08
+# modified: 2026-07-03
 
 class Device:
     _registry = []
@@ -39,6 +39,12 @@ class Device:
         self._address = address
         self._xshut = xshut
         self._pixel = pixel
+        self._driver = None
+
+        # Instantiate the pin even if impl is None to maintain structural symmetry
+        from machine import Pin
+        self._pin = Pin(xshut, Pin.OUT)
+
         Device._registry.append(self)
 
     @property
@@ -65,12 +71,40 @@ class Device:
     def xshut(self):
         return self._xshut
 
+    @property
+    def driver(self):
+        return self._driver
+
+    @driver.setter
+    def driver(self, value):
+        self._driver = value
+
+    def set_xshut(self, state):
+        '''
+        Sets the hardware XSHUT pin state using explicit pin.on() and pin.off().
+        '''
+        if self._pin is not None:
+            self._pin.on() if state else self._pin.off()
+
+    def init_driver(self, i2c):
+        '''
+        Instantiates the matching MicroPython driver for this sensor at its configured address.
+        '''
+        if self._impl == 'VL53L1X':
+            from vl53l1x import VL53L1X
+            self._driver = VL53L1X(i2c, address=self._address)
+        elif self._impl == 'VL53L0X':
+            from vl53l0x import VL53L0X
+            self._driver = VL53L0X(i2c, address=self._address)
+        else:
+            self._driver = None
+
     def __int__(self):
         return self._index
 
     def __repr__(self):
         return "Device({}, {}, 0x{:02X}, xshut={}, pixel={})".format(
-            self._index, self._label, self._i2c_address, self._xshut, self._pixel
+            self._index, self._label, self.i2c_address, self._xshut, self._pixel
         )
 
     def __eq__(self, other):

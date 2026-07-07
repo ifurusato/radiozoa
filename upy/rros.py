@@ -18,11 +18,17 @@ from colors import *
 from pixel import Pixel
 from config_loader import ConfigLoader
 from component import Component
+from dip_switch import DipSwitch
 from logger import Logger, Level
 from message_bus import MessageBus
 from message_factory import MessageFactory
 from motor_controller import MotorController
 from drive import Drive
+
+from radiozoa_config import RadiozoaConfig
+from radiozoa_sensor import RadiozoaSensor
+from tof_publisher import ToFPublisher
+from radiozoa_behaviour import Radiozoa
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class RROS(Component):
@@ -43,6 +49,7 @@ class RROS(Component):
         self._radiozoa_enabled = self._config['rros']['radiozoa']['enabled']
         self._roam_enabled     = self._config['rros']['roam']['enabled']
         self._drive_enabled    = self._config['rros']['drive']['enabled']
+        self._motor_controller_enabled = self._config['rros']['motor_controller']['enabled']
         self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}; drive enabled? {}'.format(
             self._radiozoa_enabled, self._roam_enabled, self._drive_enabled) + Style.RESET_ALL)
         # pixel and ring ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -67,43 +74,27 @@ class RROS(Component):
         _i2c_baud_rate = _i2c_cfg['baud_rate'] # 400_000
         self._i2c = I2C(_i2c_id, scl=_scl, sda=_sda, freq=_i2c_baud_rate)
 
+        self.devices     = []
         self._sensor     = None
         self._visualiser = None
         self._publisher  = None
         self._radiozoa   = None
         self._roam       = None
-        self.devices     = []
+        self._motor_ctrl = None
+        self._dip_switch = DipSwitch()
 
         if self._ring is not None:
             from ring_visualiser import RingVisualiser
-            self._log.info('🐟 creating ring visualiser…')
+            self._log.info('creating ring visualiser…')
             self._visualiser = RingVisualiser(self._ring, self._message_bus, level=self._level)
             self._visualiser.set_brightness(0.2)
 #           self._visualiser.set_brighten(True)
         else:
-            self._log.info('🐟 no ring visualiser.')
+            self._log.warn('no ring visualiser.')
             self._visualiser = None
 
-        self._configure_radiozoa = False
+        self._configure_radiozoa = self._radiozoa_enabled
         if self._configure_radiozoa:
-
-            from device import Device
-            from radiozoa_config import RadiozoaConfig
-            from radiozoa_sensor import RadiozoaSensor
-            from tof_publisher import ToFPublisher
-            from radiozoa_behaviour import Radiozoa
-
-            # create device configurations ┈┈┈┈┈┈┈┈┈┈┈
-            for _dev_cfg in self._config['rros']['devices']:
-                _device = Device(
-                    _dev_cfg['index'],
-                    _dev_cfg['impl'],
-                    _dev_cfg['label'],
-                    _dev_cfg['address'],
-                    _dev_cfg['xshut'],
-                    _dev_cfg['pixel']
-                )
-                self.devices.append(_device)
             # configure sensor addresses synchronously before async loop starts
             self._log.info('configuring radiozoa…')
             self._radiozoa_config = RadiozoaConfig(config=self._config, i2c=self._i2c, visualiser=self._visualiser, level=self._level)
@@ -113,23 +104,29 @@ class RROS(Component):
             self.continue_init()
 
     def continue_init(self):
+        self._log.debug('continuing initialisation…')
         if self._radiozoa_config and not self._radiozoa_config.configured:
             raise RuntimeError('sensor configuration failed.')
         if self._configure_radiozoa:
             self._log.info('creating radiozoa sensor…')
             self._sensor = RadiozoaSensor(i2c=self._i2c, level=self._level)
+            self._log.info('initialising device drivers…')
+            self._sensor.init_device_drivers()
             self._log.info('creating publisher…')
-            self._publisher = ToFPublisher(self._sensor, self._message_bus, level=self._level)
+            self._publisher = ToFPublisher(self._config, self._sensor, self._message_bus, self._message_factory, level=self._level)
 
-        self._log.info('creating motor controller…')
-        self._motor_ctrl = MotorController(config=self._config, visualiser=self._visualiser, level=self._level)
+        if self._motor_controller_enabled:
+            self._log.info('creating motor controller…')
+            self._motor_ctrl = MotorController(config=self._config, visualiser=self._visualiser, level=self._level)
+
         if self._radiozoa_enabled:
             self._log.info('creating radiozoa behaviour…')
             self._radiozoa = Radiozoa(self._message_bus, self._motor_ctrl, level=self._level)
 
-            from roam_behaviour import Roam
+        if self._roam_enabled:
+            from roam import Roam
 
-            self._log.info('creating roam behaviour…')
+            self._log.info('🍏 creating roam behaviour…')
             self._roam = Roam(self._config, self._message_bus, self._motor_ctrl, self._visualiser, level=self._level)
 
         # simple test behaviour
@@ -159,25 +156,28 @@ class RROS(Component):
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     async def run(self):
-        self._message_bus.enable()
+        self._log.info(Fore.GREEN + 'run…' + Style.RESET_ALL)
+        if self._sensor:
+            self._sensor.start_ranging()
+        else:
+            self._log.warn('no sensor available.')
         if self._publisher:
             self._publisher.enable()
+        if self._visualiser:
+            self._log.info('😰 enabling ring visualiser…')
+            self._visualiser.enable()
         if self._radiozoa_enabled:
             self._radiozoa.enable()
         if self._roam_enabled:
             self._roam.enable()
         if self._drive_enabled:
             self._drive.enable() # after delay, drive will enable motor controller
-#       self._motor_ctrl.enable()
-        if self._visualiser:
-            self._log.info('enabling ring visualiser…')
-            self._visualiser.enable()
-        if self._sensor:
-            self._sensor.start_ranging()
+        self._message_bus.enable()
         asyncio.create_task(self._message_bus.consume_loop())
         if self._publisher:
             asyncio.create_task(self._publisher.poll_loop())
-#       asyncio.create_task(self._motor_ctrl._run())
+        self._motor_ctrl.enable()
+        self._pixel.set_color(color=COLOR_DEEP_CYAN)
         self._log.info(Fore.GREEN + 'running…' + Style.RESET_ALL)
         # yield control to the event loop so scheduled tasks can begin execution
 #       await asyncio.sleep_ms(0)

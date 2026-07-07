@@ -15,9 +15,11 @@ class AnalogControl:
     '''
     A class to interface with an analog potentiometer on the ESP32-S3.
     '''
-    def __init__(self, config=None, reverse=False):
+    def __init__(self, config=None, reverse=True):
         '''
         Initialize the ADC pin with 11dB attenuation and 12-bit width.
+        Depending on how the pot is wired, the reverse argument may be
+        necessary to set the positive/negative rotational direction.
         '''
         if config is None:
             raise TypeError('no configuration provided.')

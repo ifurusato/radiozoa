@@ -9,7 +9,9 @@
 # created:  2026-06-04
 # modified: 2026-06-04
 
+import sys
 import asyncio
+from colorama import Fore, Style
 
 from logger import Level
 from event import TOF_DISTANCES
@@ -28,8 +30,10 @@ class ToFPublisher(Publisher):
     '''
     DEFAULT_POLL_MS = 50
 
-    def __init__(self, sensor, message_bus, poll_ms=DEFAULT_POLL_MS, level=Level.INFO):
-        Publisher.__init__(self, 'tof-pub', message_bus, level)
+    def __init__(self, config=None, sensor=None, message_bus=None, message_factory=None, poll_ms=DEFAULT_POLL_MS, level=Level.INFO):
+        Publisher.__init__(self, 'tof-pub', message_bus, message_factory, suppressed=False, enabled=False, level=level)
+        _cfg = config['rros']['tof_publisher']
+        self._verbose = _cfg['verbose']
         self._sensor  = sensor
         self._poll_ms = poll_ms
 
@@ -43,6 +47,30 @@ class ToFPublisher(Publisher):
     def poll_ms(self, value):
         self._poll_ms = value
 
+    def enable(self):
+        super().enable()
+        self._log.info('enabled.')
+
+    def _get_color(self, value):
+        if value <= 50:
+            return Fore.RED
+        elif value <= 100:
+            return Fore.YELLOW
+        elif value <= 200:
+            return Fore.GREEN
+        elif value <= 300:
+            return Fore.CYAN
+        elif value <= 500:
+            return Fore.MAGENTA
+        else:
+            return Fore.BLACK
+
+    def _formatter(self, distances):
+        parts = []
+        for distance in distances:
+            parts.append("{}{:4d}{}".format(self._get_color(distance), distance, Style.RESET_ALL))
+        return " ".join(parts)
+
     async def poll_loop(self):
         '''
         Async poll loop: reads all eight sensors and publishes distances while enabled.
@@ -50,11 +78,14 @@ class ToFPublisher(Publisher):
         self._log.info('poll loop started.')
         while self.enabled:
             try:
-                _distances = self._sensor.get_distances()
-                _message = Message(TOF_DISTANCES, _distances)
+                _distances = await self._sensor.get_distances_async()
+                if self._verbose:
+                    self._log.info("distances: {}".format(self._formatter(_distances)))
+                _message = self._message_factory.create_message(TOF_DISTANCES, _distances)
                 self.publish(_message)
             except Exception as e:
                 self._log.error('{} raised in poll loop: {}'.format(type(e), e))
+                sys.print_exception(e)
             await asyncio.sleep_ms(self._poll_ms)
         self._log.info('poll loop ended.')
 
