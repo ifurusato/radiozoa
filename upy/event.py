@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2020-02-21
-# modified: 2026-07-07
+# modified: 2026-06-22
 
 class Event:
     '''

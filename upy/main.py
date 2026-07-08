@@ -21,6 +21,7 @@ from rros import RROS
 
 # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
+RELAY_SETUP = True
 START_COUNT = 3
 
 log = Logger('main', Level.INFO)
@@ -52,7 +53,7 @@ def print_sysinfo():
 # main ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
 _rros = None
-_pixel = Pixel(pin=48, pixel_count=1, color_order='GRB', brightness=0.1)
+_pixel = Pixel(pin=48, pixel_count=1, color_order='GRB', brightness=0.3)
 
 try:
 
@@ -60,6 +61,17 @@ try:
     print_sysinfo()
 
     _rros = RROS(pixel=_pixel)
+
+    if RELAY_SETUP:
+
+        from config_loader import ConfigLoader
+        from relay_setup import RelaySetup
+
+        _config = ConfigLoader.configure('relay_config.yaml')
+        relay_setup = RelaySetup(_config, _rros.message_bus, _rros.message_factory, _rros.pixel, level=Level.INFO);
+
+        log.info('relay ready.')
+
     # blocks until completion
     _rros.start()
 

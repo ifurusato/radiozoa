@@ -57,6 +57,9 @@ class Pixel(Component):
             if steps != -1 and step >= steps:
                 break
 
+    def show_color(self, color=None):
+        self.set_color(index=0, color=color)
+
     def set_color(self, index=None, color=None):
         if self.enabled:
             _index = self._pixel_index if index is None else index

@@ -63,6 +63,7 @@ class MotorController(Component):
             raise TypeError('no configuration provided.')
         _cfg = config['rros']['motor_controller']
         self._visualiser           = visualiser
+        self._visualise            = _cfg['visualise']
         self._deadband             = config['rros']['analog_control']['deadband']
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._verbose              = _cfg['verbose']
@@ -159,6 +160,17 @@ class MotorController(Component):
         self._log.info('ready.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    @property
+    def visualise(self):
+        return self._visualise
+
+    @visualise.setter
+    def visualise(self, value):
+        '''
+        Enable/disable the visualisation.
+        '''
+        self._visualise = value
 
     @property
     def closed_loop(self):
@@ -407,14 +419,16 @@ class MotorController(Component):
 
         self._motor_port.set_power(pwr_port)
         self._motor_stbd.set_power(pwr_stbd)
+
         # odometry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         if self._verbose:
             self._log.info('port: {:.1f}mm/s {:.1f}mm | stbd: {:.1f}mm/s {:.1f}mm; '.format(
                     self._velocity_port, self._motor_port.get_distance_mm(), 
                     self._velocity_stbd, self._motor_stbd.get_distance_mm()) 
                     + Fore.BLUE + 'port: {} steps, stbd: {} steps.'.format(self._motor_port.steps, self._motor_stbd.steps))
+
         # ring visualisation ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        if self._visualiser:
+        if self._visualiser and self._visualise:
             if abs(v_port) < self._deadband:
                 rgb_port = (0, 0, 0)
             else:
@@ -433,6 +447,7 @@ class MotorController(Component):
                 self._visualiser.set_color(self._pin_stbd_pix1, rgb_stbd)
             if self._pin_stbd_pix2:
                 self._visualiser.set_color(self._pin_stbd_pix2, rgb_stbd)
+
         if self._callback and self._condition():
             self._log.info(Fore.WHITE + Style.BRIGHT + 'execute callback…')
             if self._one_shot:

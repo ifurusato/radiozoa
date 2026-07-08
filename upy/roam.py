@@ -55,6 +55,7 @@ class Roam(Behaviour):
         # analog controller ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._pin_analog = _cfg['pin_analog'] # 22
         self._verbose    = _cfg['verbose']
+        self._visualise  = _cfg['visualise']
         self._counter    = itertools.count()
         self._control    = AnalogControl(config)
         self._bias       = 0.0
@@ -66,6 +67,17 @@ class Roam(Behaviour):
                 lambda: self._intent_vector if self.is_active else (0.0, 0.0, 0.0),
                 lambda: self._priority)
         self._log.info('ready.')
+
+    @property
+    def visualise(self):
+        return self._visualise
+
+    @visualise.setter
+    def visualise(self, value):
+        '''
+        Enable/disable the visualisation.
+        '''
+        self._visualise = value
 
     async def process_message(self, message):
         distances = message.value
@@ -79,7 +91,8 @@ class Roam(Behaviour):
         '''
         # analog bias [-1.0, 1.0] is the requested speed and direction
         self._bias = round(self._control.value, 2)
-        self._visualiseBias()
+        if self._visualise:
+            self._visualiseBias()
         self._last_bias = self._bias
         if -self._DEADBAND < self._bias < self._DEADBAND:
             if self._verbose:
@@ -118,6 +131,7 @@ class Roam(Behaviour):
             if self._bias != self._last_bias:
                 self._log.info("analog value: {}".format(self._bias))
             else:
-                self._log.info(Fore.BLACK + "analog value: {}".format(self._bias))
+#               self._log.debug(Fore.BLACK + "analog value: {}".format(self._bias))
+                pass
 
 #EOF

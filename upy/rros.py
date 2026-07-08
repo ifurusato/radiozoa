@@ -44,12 +44,12 @@ class RROS(Component):
     def __init__(self, pixel=None, ring=None, level=Level.INFO):
         self._level  = level
         Component.__init__(self, RROS.NAME, suppressed=False, enabled=True, level=self._level)
-#       self._log    = Logger('rros', level)
         self._config = ConfigLoader.configure('config.yaml')
         self._radiozoa_enabled = self._config['rros']['radiozoa']['enabled']
         self._roam_enabled     = self._config['rros']['roam']['enabled']
         self._drive_enabled    = self._config['rros']['drive']['enabled']
         self._motor_controller_enabled = self._config['rros']['motor_controller']['enabled']
+        self._remote_control_enabled   = self._config['rros']['remote_control']['enabled']
         self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}; drive enabled? {}'.format(
             self._radiozoa_enabled, self._roam_enabled, self._drive_enabled) + Style.RESET_ALL)
         # pixel and ring ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -126,8 +126,14 @@ class RROS(Component):
         if self._roam_enabled:
             from roam import Roam
 
-            self._log.info('🍏 creating roam behaviour…')
+            self._log.info('creating roam behaviour…')
             self._roam = Roam(self._config, self._message_bus, self._motor_ctrl, self._visualiser, level=self._level)
+
+        if self._remote_control_enabled:
+            from remote_control import RemoteControl
+
+            self._log.info('creating remote control…')
+            self._remote_control = RemoteControl(self, level=Level.INFO)
 
         # simple test behaviour
         self._drive = Drive(config=self._config, message_bus=self._message_bus, message_factory=self._message_factory, motor_controller=self._motor_ctrl)
@@ -142,8 +148,20 @@ class RROS(Component):
         return self._message_bus
 
     @property
+    def message_factory(self):
+        return self._message_factory
+
+    @property
+    def pixel(self):
+        return self._pixel
+
+    @property
     def motor_controller(self):
         return self._motor_ctrl
+
+    @property
+    def visualiser(self):
+        return self._visualiser
 
     @property
     def drive(self):
@@ -164,7 +182,7 @@ class RROS(Component):
         if self._publisher:
             self._publisher.enable()
         if self._visualiser:
-            self._log.info('😰 enabling ring visualiser…')
+            self._log.info('enabling ring visualiser…')
             self._visualiser.enable()
         if self._radiozoa_enabled:
             self._radiozoa.enable()

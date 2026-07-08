@@ -16,15 +16,19 @@ rros:
     roam:
         enabled:            True
         verbose:           False
+        visualise:          True
         pin_analog:           22
     radiozoa:
         enabled:            True
         check_configured:   True
     tof_publisher:
         verbose:           False
+    remote_control:
+        enabled:            True
     motor_controller:
         enabled:            True
         verbose:           False
+        visualise:          True
         closed_loop:        True
         pid:
             kp:                0.12

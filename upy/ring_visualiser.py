@@ -47,6 +47,10 @@ class RingVisualiser(Subscriber):
         # clear ring on startup
         self._ring.off()
 
+    def disable(self):
+        self._ring.off()
+        super().disable()
+
     def set_brightness(self, multiplier):
         self._brightness = multiplier
         pass
@@ -55,6 +59,9 @@ class RingVisualiser(Subscriber):
         self._brighten = brighten
 
     async def process_message(self, message):
+        if self.disabled:
+            self._log.warn('process message: disabled.')
+            return
         distances = message.value
         for device in Device.all():
             distance = distances[device.index]
@@ -72,6 +79,9 @@ class RingVisualiser(Subscriber):
         self._ring.set_color(pixel, (0, 0, 0))
 
     def set_color(self, pixel, color):
+        if self.disabled:
+            self._log.warn('set color: disabled.')
+            return
         self._color[0] = int(color[0] * self._brightness)
         self._color[1] = int(color[1] * self._brightness)
         self._color[2] = int(color[2] * self._brightness)
