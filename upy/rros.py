@@ -89,6 +89,7 @@ class RROS(Component):
             self._visualiser = RingVisualiser(self._ring, self._message_bus, level=self._level)
             self._visualiser.set_brightness(0.2)
 #           self._visualiser.set_brighten(True)
+            self._visualiser.enable() # default enabled
         else:
             self._log.warn('no ring visualiser.')
             self._visualiser = None
@@ -181,9 +182,6 @@ class RROS(Component):
             self._log.warn('no sensor available.')
         if self._publisher:
             self._publisher.enable()
-        if self._visualiser:
-            self._log.info('enabling ring visualiser…')
-            self._visualiser.enable()
         if self._radiozoa_enabled:
             self._radiozoa.enable()
         if self._roam_enabled:

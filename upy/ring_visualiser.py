@@ -80,7 +80,7 @@ class RingVisualiser(Subscriber):
 
     def set_color(self, pixel, color):
         if self.disabled:
-            self._log.warn('set color: disabled.')
+#           self._log.debug('set color: disabled.')
             return
         self._color[0] = int(color[0] * self._brightness)
         self._color[1] = int(color[1] * self._brightness)

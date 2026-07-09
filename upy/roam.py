@@ -129,7 +129,8 @@ class Roam(Behaviour):
         self._count = next(self._counter)
         if self._count % 50 == 0:
             if self._bias != self._last_bias:
-                self._log.info("analog value: {}".format(self._bias))
+#               self._log.debug("analog value: {}".format(self._bias))
+                pass
             else:
 #               self._log.debug(Fore.BLACK + "analog value: {}".format(self._bias))
                 pass

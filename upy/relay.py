@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-22
-# modified: 2026-07-07
+# modified: 2026-07-10
 #
 # ESP-NOW RELAY
 
@@ -47,7 +47,6 @@ class Relay(Component):
         self._total_devices = len(self._device_list)
         self._local_mac_str = self._networking.mac_address
         self._log.info('device MAC address: ' + Fore.GREEN + '{}'.format(self._local_mac_str))
-        self._print_configuration()
         # find this device's position in catalog ┈┈┈┈┈┈┈┈┈┈┈
         self._index, local_device = Relay.find_device_by_mac(self._device_list, self._local_mac_str)
         if self._index is None:
@@ -69,6 +68,8 @@ class Relay(Component):
             self._load_encryption_keys()
         else:
             self._log.info('using open transport.')
+        # display relay configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._print_configuration()
         # configure relay routing map ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._inbound_name        = None
         self._outbound_name       = None
@@ -166,7 +167,7 @@ class Relay(Component):
 
     def send_message(self, peer, direction, message):
         '''
-        Serializes an existing Message instance and transmits it over the network.
+        Serialises an existing Message instance and transmits it over the network.
         '''
         if not isinstance(peer, bytes):
             raise TypeError('was passed {} rather than bytes object.'.format(type(peer)))
@@ -174,7 +175,7 @@ class Relay(Component):
             raise TypeError('was passed {} rather than Direction object.'.format(type(direction)))
         if self._verbose:
             self._log.info('sending message {}: {}'.format(direction.name, message))
-        payload = self._message_codec.serialize(direction, message)
+        payload = self._message_codec.serialise(direction, message)
         ok = False
         try:
             encoded_payload = payload.encode('utf-8')
@@ -271,14 +272,19 @@ class Relay(Component):
             if encoded_message is not None:
 #               self._log.debug("received message: '{}'".format(encoded_message))
                 try:
+                    if encoded_message == b'\x00':
+                        continue
                     decoded_msg = encoded_message.decode('utf-8')
-#                   self._log.debug("decoded message: '{}'".format(decoded_msg))
-                    direction, reconstructed_msg = self._message_codec.deserialize(decoded_msg)
-#                   self._log.debug("reconstructed message: '{}'".format(reconstructed_msg))
-                    if direction is OUTBOUND:
-                        self._handle_outbound(reconstructed_msg)
-                    elif direction is INBOUND:
-                        self._handle_inbound(reconstructed_msg)
+#                   self._log.debug("decoded message: '{!r}' ({} chars)".format(decoded_msg, len(decoded_msg)))
+                    if len(decoded_msg) > 0:
+                        direction, reconstructed_msg = self._message_codec.deserialise(decoded_msg)
+#                       self._log.debug("reconstructed message: '{}'".format(reconstructed_msg))
+                        if direction is OUTBOUND:
+                            self._handle_outbound(reconstructed_msg)
+                        elif direction is INBOUND:
+                            self._handle_inbound(reconstructed_msg)
+                    else:
+                        self._log.warning("empty message.")
                 except Exception as e:
                     self._log.error('error in relay: {}'.format(e))
                     sys.print_exception(e)
@@ -466,20 +472,55 @@ class Relay(Component):
             name = device.get('name')
             mac_address = device.get('mac')
             enabled = device.get('enabled')
+            in_range = '•' if self._is_peer_in_range(mac_address) else ''
             if not enabled:
                 self._log.info(Style.DIM 
                         + "[{}]  id: {:<4} name: {:<34} ".format(num, id, name) 
-                        + 'mac: ' + Fore.GREEN + '{}'.format(mac_address))
+                        + 'mac: ' + Fore.GREEN + '{}'.format(mac_address)
+                        + Fore.CYAN + Style.NORMAL + " {}".format(in_range))
             elif mac_address == self._local_mac_str.lower():
                 self._log.info("[{}]  id: ".format(num) 
                         + Style.BRIGHT + "{:<4} ".format(id) 
                         + Style.NORMAL + "name: "
                         + Style.BRIGHT + "{:<34} ".format(name)
                         + Style.NORMAL + "mac: " 
-                        + Fore.GREEN + Style.BRIGHT + "{}".format(mac_address))
+                        + Fore.GREEN + Style.BRIGHT + "{} •".format(mac_address))
             else:
                 self._log.info("[{}]  id: {:<4} name: {:<34} ".format(num, id, name) 
-                        + 'mac: ' + Fore.GREEN + '{}'.format(mac_address))
+                        + 'mac: ' + Fore.GREEN + '{}'.format(mac_address)
+                        + Fore.CYAN + Style.BRIGHT + " {}".format(in_range))
+
+    def _is_peer_in_range(self, mac_str):
+        '''
+        Sends a synchronous ping to a MAC address string to verify if it
+        is within radio range. Returns True if acknowledged, False otherwise.
+        '''
+        if not self._encryption_enabled:
+            try:
+                mac_bytes = ubinascii.unhexlify(mac_str.replace(":", ""))
+                try:
+                    exists = any(peer[0] == mac_bytes for peer in self._espnow.get_peers())
+                    if not exists:
+                        self._espnow.add_peer(mac_bytes)
+                    try:
+                        # True parameter forces a synchronous send expecting an ACK
+                        connected = bool(self._espnow.send(mac_bytes, b"\x00", True))
+#                       self._log.debug('mac: {}; connected: {}'.format(mac_str, connected))
+                        return connected
+                    finally:
+                        if not exists:
+                            self._espnow.del_peer(mac_bytes)
+                except OSError as e:
+                    # ENODEV (error 19) indicates the peer did not ACK (out of range)
+                    if len(e.args) > 0 and e.args[0] != 19:
+                        self._log.error("ESP-NOW hardware error testing '{}': {}".format(mac_str, e))
+                except Exception as e:
+                    self._log.error("Unexpected error checking range for '{}': {}".format(mac_str, e))
+            except ValueError as e:
+                self._log.error("Invalid MAC address format '{}': {}".format(mac_str, e))
+            except Exception as e:
+                self._log.error("Unexpected error parsing MAC '{}': {}".format(mac_str, e))
+        return False
 
     @staticmethod
     def find_device_by_mac(device_list, mac_str):

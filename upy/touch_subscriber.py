@@ -7,10 +7,11 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-07-05
-# modified: 2026-07-07
+# modified: 2026-07-10
 #
 # ESP-NOW RELAY
 
+import asyncio
 from colorama import Fore, Style
 
 from logger import Level
@@ -32,6 +33,7 @@ class TouchSubscriber(Subscriber):
         self._config = config
         self._pixel  = pixel
         self.add_event(TOUCH)
+        self._led_task = None
         # map each ExplorerButton to its corresponding color
         self._button_colors = {
             ExplorerButton.by_name('A'):     COLOR_BLUE,
@@ -68,13 +70,35 @@ class TouchSubscriber(Subscriber):
         This method can be overridden by subclasses to perform actions
         depending upon the button.
         '''
-#       self._log.debug('handle button press: {}; message: '.format(button) + Fore.GREEN + '{}'.format(message))
         color = self._button_colors.get(button)
         if color:
-#           self._log.debug('setting color {} for button: {}'.format(color.name, button))
-            self._pixel.show_color(color)
+            if self._led_task is not None:
+                self._led_task.cancel()
+            self._led_task = asyncio.create_task(self._flash_led(color, 1000))
+#           self._pixel.show_color(color)
         else:
             self._log.warn('no color for button: {}'.format(button))
-#       self._log.debug('rx: button={} ID={} (age={}ms)'.format(Fore.GREEN + button.name + Fore.RESET, button.id, message.age_ms))
+
+    # utility ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def _show_color(self, color):
+        '''
+        Set the color of the pixel.
+        '''
+        if self._pixel:
+            self._pixel.show_color(color)
+
+    async def _flash_led(self, color, duration_ms=1000):
+        '''
+        Asynchronously set the color of the pixel for a specified
+        period of time, then return to black.
+        '''
+        try:
+            self._show_color(color)
+            await asyncio.sleep_ms(duration_ms)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._show_color(COLOR_BLACK)
 
 #EOF

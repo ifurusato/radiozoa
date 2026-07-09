@@ -60,6 +60,8 @@ class RemoteControl(TouchSubscriber):
         visualiser settings.
         '''
         self._log.info('button 1')
+        if self._led_task is not None:
+            self._led_task.cancel()
         self._led_task = asyncio.create_task(self._flash_led(COLOR_PEAR, 2000))
         _visualiser = self._rros.visualiser
         _enabled = _visualiser.enabled
@@ -133,20 +135,7 @@ class RemoteControl(TouchSubscriber):
 
     # utility ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
-    def _show_color(self, color):
-        '''
-        Set the color of the pixel.
-        '''
-        if self._pixel:
-            self._pixel.show_color(color)
-
-    async def _flash_led(self, color, duration_ms=1000):
-        '''
-        Asynchronously set the color of the pixel for a specified
-        period of time, then return to black.
-        '''
-        self._show_color(color)
-        await asyncio.sleep_ms(duration_ms)
-        self._show_color(COLOR_BLACK)
+#   def _show_color(self, color):
+#   async def _flash_led(self, color, duration_ms=1000):
 
 #EOF

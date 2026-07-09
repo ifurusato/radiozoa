@@ -50,7 +50,7 @@ rros:
             - id:            "n4"
               name:          "Node 4 - FeatherS2"
               mac:           "7c:df:a1:03:4d:fe"
-              enabled:       True
+              enabled:       False
 
             - id:            "n5"
               name:          "Node 5 - Waveshare ESP32-S3 Zero"
