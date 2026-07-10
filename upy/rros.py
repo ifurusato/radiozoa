@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-06-21
+# modified: 2026-07-10
 
 from machine import I2C
 import asyncio
@@ -132,9 +132,15 @@ class RROS(Component):
 
         if self._remote_control_enabled:
             from remote_control import RemoteControl
+            from remote_control_subscriber import RemoteControlSubscriber
 
-            self._log.info('creating remote control…')
+            self._log.info('creating remote control behaviour…')
             self._remote_control = RemoteControl(self, level=Level.INFO)
+            self._remote_control.enable()
+
+            self._log.info('creating remote control subscriber…')
+            self._remote_control_subscriber = RemoteControlSubscriber(self, level=Level.INFO)
+            self._remote_control_subscriber.enable()
 
         # simple test behaviour
         self._drive = Drive(config=self._config, message_bus=self._message_bus, message_factory=self._message_factory, motor_controller=self._motor_ctrl)
@@ -188,8 +194,7 @@ class RROS(Component):
             self._roam.enable()
         if self._drive_enabled:
             self._drive.enable() # after delay, drive will enable motor controller
-        self._message_bus.enable()
-        asyncio.create_task(self._message_bus.consume_loop())
+        self._message_bus.enable() # asyncio.create_task(self._message_bus._start_consuming())
         if self._publisher:
             asyncio.create_task(self._publisher.poll_loop())
         self._motor_ctrl.enable()

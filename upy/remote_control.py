@@ -6,51 +6,91 @@
 # see the LICENSE file included as part of this package.
 #
 # author:   Ichiro Furusato
-# created:  2026-07-08
-# modified: 2026-07-08
+# created:  2026-07-10
+# modified: 2026-07-10
 
 import asyncio
 from colorama import Fore, Style
 
+from logger import Logger, Level
+from event import TOUCH
 from colors import *
-from logger import Level
-from component import Component
-from touch_subscriber import TouchSubscriber
+from behaviour import Behaviour
 from explorer_button import ExplorerButton
 
-class RemoteControl(TouchSubscriber):
-    NAME = 'touch'
+class RemoteControl(Behaviour):
+    NAME      = 'remote'
+    _PRIORITY = 0.6
+    _STEP     = 0.1
     '''
-    A subscriber that receives TOUCH event messages and decodes their string value
-    back into ExplorerButton pseudo-enum instances for further action.
+    Behaviour that responds to discrete gamepad messages to update the intent
+    vector (vy for forward/back, omega for rotation) of the MotorController.
 
-    This is meant to be installed on both the initiator and endpoint nodes.
+    :param rros:    the RROS instance
+    :param level:   the log level
     '''
     def __init__(self, rros, level=Level.INFO):
-        self._rros = rros
+        self._motor_controller = rros.motor_controller
         self._pixel = rros.pixel
-        TouchSubscriber.__init__(self, rros.config, rros.message_bus, rros.pixel, level=level)
+        Behaviour.__init__(
+                self,
+                name=RemoteControl.NAME,
+                message_bus=rros.message_bus,
+                suppressed=False,
+                enabled=False,
+                level=level,
+                _init_base=True)
+        _cfg = rros.config['rros']['remote_control']
+        self._vx    = 0.0
+        self._vy    = 0.0
+        self._omega = 0.0
+        self._intent_vector = (self._vx, self._vy, self._omega)
+        self.add_event(TOUCH)
+        # only pay attention to UP, DN, LT, RT and 4.
         self._button_handlers = {
-            0: self._handle_button_3,   1: self._handle_button_2,   2: self._handle_button_1,
+            0: None,                    1: None,                    2: None,
             3: self._handle_button_dn,  4: self._handle_button_lt,  5: self._handle_button_rt,
-            6: self._handle_button_4,   7: self._handle_button_up,  8: self._handle_button_b,
-            9: self._handle_button_a,  10: self._handle_button_y,  11: self._handle_button_x,
+            6: self._handle_button_4,   7: self._handle_button_up,  8: None,
+            9: None,                   10: None,                   11: None
         }
-        _registry = Component.get_registry()
-        self._roam = _registry.get('beh:roam')
-        # ready.
+        if self._motor_controller:
+            self._motor_controller.add_intent_vector(
+                RemoteControl.NAME,
+                lambda: self._intent_vector,
+                lambda: self._PRIORITY
+            )
+        self._led_task = None
+        self._log.info('ready.')
+
+    def _update_vector(self):
+        self._intent_vector = (self._vx, self._vy, self._omega)
+        self._log.info('intent updated: {}'.format(self._intent_vector))
+
+    async def process_message(self, message):
+        '''
+        Decodes the message payload back into an ExplorerButton instance.
+        '''
+        self._log.info('process message: ' + Fore.GREEN + '{}'.format(message))
+        button_name = message.value
+        button = ExplorerButton.by_name(button_name)
+        if button is not None:
+            await self.handle_button_press(button, message)
+        else:
+            self._log.error('received unknown button name payload: {}'.format(button_name))
 
     async def handle_button_press(self, button, message):
         '''
-        Calls the corresponding button handler.
+        Calls the corresponding button handler, which returns True or False
+        for each handler, if True flashes the pixel.
         '''
         handler = self._button_handlers.get(button.id)
         if handler is not None:
             if handler():
-                # if setting pixel is desired, call superclass
-                await super().handle_button_press(button, message)
+                if self._led_task is not None:
+                    self._led_task.cancel()
+                self._led_task = asyncio.create_task(self._flash_led(button.color, 1000))
         else:
-            self._log.warn('unrecognised button ID: {}'.format(button.id))
+            self._log.debug('unrecognised button ID: {}'.format(button.id))
 
     # button handlers ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
@@ -99,22 +139,34 @@ class RemoteControl(TouchSubscriber):
 
     def _handle_button_4(self):
         self._log.info('button 4')
+        self._vx = 0.0
+        self._vy = 0.0
+        self._omega = 0.0
+        self._update_vector()
         return True
 
     def _handle_button_up(self):
         self._log.info('button UP')
+        self._vy = min(1.0, self._vy + self._STEP)
+        self._update_vector()
         return True
 
     def _handle_button_dn(self):
         self._log.info('button DN')
+        self._vy = max(-1.0, self._vy - self._STEP)
+        self._update_vector()
         return True
 
     def _handle_button_lt(self):
         self._log.info('button LT')
+        self._omega = max(-1.0, self._omega - self._STEP)
+        self._update_vector()
         return True
 
     def _handle_button_rt(self):
         self._log.info('button RT')
+        self._omega = min(1.0, self._omega + self._STEP)
+        self._update_vector()
         return True
 
     def _handle_button_a(self):
@@ -135,7 +187,24 @@ class RemoteControl(TouchSubscriber):
 
     # utility ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
-#   def _show_color(self, color):
-#   async def _flash_led(self, color, duration_ms=1000):
+    def _show_color(self, color):
+        '''
+        Set the color of the pixel.
+        '''
+        if self._pixel:
+            self._pixel.show_color(color)
+
+    async def _flash_led(self, color, duration_ms=1000):
+        '''
+        Asynchronously set the color of the pixel for a specified
+        period of time, then return to black.
+        '''
+        try:
+            self._show_color(color)
+            await asyncio.sleep_ms(duration_ms)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            self._show_color(COLOR_BLACK)
 
 #EOF

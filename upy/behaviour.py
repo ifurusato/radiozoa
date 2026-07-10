@@ -20,14 +20,27 @@ class Behaviour(Subscriber):
 
     :param name:         the behaviour name
     :param message_bus:  the message bus
+    :param suppressed:   the suppressed flag
+    :param enabled:      the enabled flag
+    :param _init_base:   set False to avoid double calls to superclass
+                         for multiply-inheriting classes (default True)
     :param level:        the logging level
     '''
-    def __init__(self, name, message_bus, _init_base=True, level=Level.INFO):
+    def __init__(
+            self,
+            name=None,
+            message_bus=None,
+            suppressed=False,
+            enabled=False,
+            _init_base=True,
+            level=Level.INFO):
 #       Subscriber.__init__(self, name if ':' in name else 'beh:{}'.format(name), message_bus, level)
         Subscriber.__init__(
             self,
             name=name if ':' in name else 'beh:{}'.format(name),
             message_bus=message_bus,
+            suppressed=suppressed,
+            enabled=enabled,
             level=level,
             _init_base=_init_base
         )
