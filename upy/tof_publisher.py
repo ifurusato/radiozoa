@@ -7,10 +7,11 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-06-04
+# modified: 2026-07-12
 
 import sys
 import asyncio
+import time
 from colorama import Fore, Style
 
 from logger import Level
@@ -33,11 +34,30 @@ class ToFPublisher(Publisher):
     def __init__(self, config=None, sensor=None, message_bus=None, message_factory=None, poll_ms=DEFAULT_POLL_MS, level=Level.INFO):
         Publisher.__init__(self, 'tof-pub', message_bus, message_factory, suppressed=False, enabled=False, level=level)
         _cfg = config['rros']['tof_publisher']
-        self._verbose = _cfg['verbose']
+        self._verbose = True # _cfg['verbose']
         self._sensor  = sensor
         self._poll_ms = poll_ms
+        self._poll_loop_task = None
+        self._log.info('😛 ready; id: {}'.format(self.uuid))
 
-    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    def enable(self):
+        if not self.enabled:
+            super().enable()
+            self._poll_loop_task = asyncio.create_task(self._poll_loop())
+            self._log.info('😛 enabled; id: {}'.format(self.uuid))
+#           self._log.info('😛 enabled.')
+        else:
+            self._log.warn('already enabled.')
+
+    def disable(self):
+        if self.enabled:
+            super().disable()
+            time.sleep_ms(2 * self._poll_ms)
+            if self._poll_loop_task:
+                self._poll_loop_task.cancel()
+            self._log.info('😛 disabled.')
+        else:
+            self._log.warn('already disabled.')
 
     @property
     def poll_ms(self):
@@ -47,9 +67,6 @@ class ToFPublisher(Publisher):
     def poll_ms(self, value):
         self._poll_ms = value
 
-    def enable(self):
-        super().enable()
-        self._log.info('enabled.')
 
     def _get_color(self, value):
         if value <= 50:
@@ -71,11 +88,11 @@ class ToFPublisher(Publisher):
             parts.append("{}{:4d}{}".format(self._get_color(distance), distance, Style.RESET_ALL))
         return " ".join(parts)
 
-    async def poll_loop(self):
+    async def _poll_loop(self):
         '''
         Async poll loop: reads all eight sensors and publishes distances while enabled.
         '''
-        self._log.info('poll loop started.')
+        self._log.info('😛 starting poll loop…')
         while self.enabled:
             try:
                 _distances = await self._sensor.get_distances_async()

@@ -67,7 +67,7 @@ try:
         from config_loader import ConfigLoader
         from relay_setup import RelaySetup
 
-        _config = ConfigLoader.configure('relay_config.yaml')
+        _config = ConfigLoader.configure('relay.yaml')
         relay_setup = RelaySetup(_config, _rros.message_bus, _rros.message_factory, _rros.pixel, level=Level.INFO);
 
         log.info('relay ready.')

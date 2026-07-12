@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-07-10
+# modified: 2026-07-12
 
 from machine import I2C
 import asyncio
@@ -28,7 +28,7 @@ from drive import Drive
 from radiozoa_config import RadiozoaConfig
 from radiozoa_sensor import RadiozoaSensor
 from tof_publisher import ToFPublisher
-from radiozoa_behaviour import Radiozoa
+from radiozoa import Radiozoa
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class RROS(Component):
@@ -73,16 +73,14 @@ class RROS(Component):
         _sda     = _i2c_cfg['sda']
         _i2c_baud_rate = _i2c_cfg['baud_rate'] # 400_000
         self._i2c = I2C(_i2c_id, scl=_scl, sda=_sda, freq=_i2c_baud_rate)
-
-        self.devices     = []
-        self._sensor     = None
-        self._visualiser = None
-        self._publisher  = None
-        self._radiozoa   = None
-        self._roam       = None
-        self._motor_ctrl = None
-        self._dip_switch = DipSwitch()
-
+        self.devices        = []
+        self._sensor        = None
+        self._visualiser    = None
+        self._tof_publisher = None
+        self._radiozoa      = None
+        self._roam          = None
+        self._motor_ctrl    = None
+        self._dip_switch    = DipSwitch()
         if self._ring is not None:
             from ring_visualiser import RingVisualiser
             self._log.info('creating ring visualiser…')
@@ -93,7 +91,6 @@ class RROS(Component):
         else:
             self._log.warn('no ring visualiser.')
             self._visualiser = None
-
         self._configure_radiozoa = self._radiozoa_enabled
         if self._configure_radiozoa:
             # configure sensor addresses synchronously before async loop starts
@@ -114,7 +111,7 @@ class RROS(Component):
             self._log.info('initialising device drivers…')
             self._sensor.init_device_drivers()
             self._log.info('creating publisher…')
-            self._publisher = ToFPublisher(self._config, self._sensor, self._message_bus, self._message_factory, level=self._level)
+            self._tof_publisher = ToFPublisher(self._config, self._sensor, self._message_bus, self._message_factory, level=self._level)
 
         if self._motor_controller_enabled:
             self._log.info('creating motor controller…')
@@ -186,8 +183,8 @@ class RROS(Component):
             self._sensor.start_ranging()
         else:
             self._log.warn('no sensor available.')
-        if self._publisher:
-            self._publisher.enable()
+        if self._tof_publisher:
+            self._tof_publisher.enable()
         if self._radiozoa_enabled:
             self._radiozoa.enable()
         if self._roam_enabled:
@@ -195,8 +192,6 @@ class RROS(Component):
         if self._drive_enabled:
             self._drive.enable() # after delay, drive will enable motor controller
         self._message_bus.enable() # asyncio.create_task(self._message_bus._start_consuming())
-        if self._publisher:
-            asyncio.create_task(self._publisher.poll_loop())
         self._motor_ctrl.enable()
         self._pixel.set_color(color=COLOR_DEEP_CYAN)
         self._log.info(Fore.GREEN + 'running…' + Style.RESET_ALL)
@@ -214,8 +209,8 @@ class RROS(Component):
                 self._visualiser.close()
             if self._motor_ctrl:
                 self._motor_ctrl.close()
-            if self._publisher:
-                self._publisher.close()
+            if self._tof_publisher:
+                self._tof_publisher.close()
             if self._roam:
                 self._roam.close()
             if self._radiozoa:

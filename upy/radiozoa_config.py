@@ -50,6 +50,7 @@ class RadiozoaConfig(Component):
         self._configured = False
         _cfg = self._config['rros']['radiozoa']
         self._check_configured = _cfg['check_configured']
+        self._force_configure  = _cfg['force_configure']
         self._log.info(Fore.WHITE + 'check configured: {}'.format(self._check_configured) + Style.RESET_ALL)
         self._visualiser = visualiser
         if i2c_scanner:
@@ -84,6 +85,8 @@ class RadiozoaConfig(Component):
         True we don't bother to reassign the I2C addresses. Once finished we execute
         the callback to continue application initialisation.
         '''
+        if self._force_configure:
+            self.reset()
         if self._check_configured:
             self._i2c_scanner.scan()
             self._i2c_scanner.i2cdetect(color=Fore.MAGENTA)
@@ -140,7 +143,7 @@ class RadiozoaConfig(Component):
         devices.sort(key=lambda d: d.pixel)
         for device in devices:
             if self._visualiser:
-                self._visualiser.set_color(device.pixel, COLOR_DEEP_FUCHSIA)
+                self._visualiser.set_color(device.pixel, COLOR_TURQUOISE)
             self._log.info('configuring sensor {0} at XSHUT pin {1}…'.format(device.label, device.xshut))
             device.set_xshut(True)
             found = False

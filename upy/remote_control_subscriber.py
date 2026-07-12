@@ -35,13 +35,22 @@ class RemoteControlSubscriber(TouchSubscriber):
         TouchSubscriber.__init__(self, rros.config, rros.message_bus, rros.pixel, level=level)
         # pay attention to all buttons except those used by Remote Control behaviour
         self._button_handlers = {
-            0: self._handle_button_3,   1: self._handle_button_2,   2: self._handle_button_1,
-            3: None,                    4: None,                    5: None,
-            6: None,                    7: None,                    8: self._handle_button_b,
-            9: self._handle_button_a,  10: self._handle_button_y,  11: self._handle_button_x,
+            0: self._handle_button_3,
+            1: self._handle_button_2,
+            2: self._handle_button_1,
+            3: None,
+            4: None,
+            5: None,
+            6: None,
+            7: None,
+            8: self._handle_button_b,
+            9: self._handle_button_a,
+            10: self._handle_button_y,
+            11: self._handle_button_x,
         }
         _registry = Component.get_registry()
         self._roam = _registry.get('beh:roam')
+        self._tof_publisher = _registry.get('pub:tof-pub')
         # ready.
 
     async def handle_button_press(self, button, message):
@@ -91,6 +100,13 @@ class RemoteControlSubscriber(TouchSubscriber):
             self._log.info('button 1: roam visualiser {}.'.format('disabled' if _enabled else 'enabled'))
         else:
             self._log.warn('no roam behaviour available.')
+        if self._tof_publisher:
+            if _enabled:
+                self._tof_publisher.disable()
+            else:
+                self._tof_publisher.enable()
+        else:
+            self._log.warn('no tof publisher available.')
         return False
 
     def _handle_button_2(self):

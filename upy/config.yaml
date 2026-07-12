@@ -21,6 +21,7 @@ rros:
     radiozoa:
         enabled:            True
         check_configured:   True
+        force_configure:   False       # if True, force reconfiguration
     tof_publisher:
         verbose:           False
     remote_control:
