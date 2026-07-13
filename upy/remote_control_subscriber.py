@@ -31,8 +31,12 @@ class RemoteControlSubscriber(TouchSubscriber):
     '''
     def __init__(self, rros, level=Level.INFO):
         self._rros = rros
-        self._pixel = rros.pixel
-        TouchSubscriber.__init__(self, rros.config, rros.message_bus, rros.pixel, level=level)
+        TouchSubscriber.__init__(self,
+                name        = RemoteControlSubscriber.NAME,
+                config      = rros.config,
+                message_bus = rros.message_bus,
+                pixel       = rros.pixel,
+                level       = level)
         # pay attention to all buttons except those used by Remote Control behaviour
         self._button_handlers = {
             0: self._handle_button_3,
@@ -125,6 +129,7 @@ class RemoteControlSubscriber(TouchSubscriber):
 
     def _handle_button_a(self):
         self._log.info('button A')
+        self._rros.indicate_shutdown()
         return True
 
     def _handle_button_b(self):

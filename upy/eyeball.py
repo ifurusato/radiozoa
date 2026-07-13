@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2024-10-23
-# modified: 2026-07-01
+# modified: 2026-07-13
 #
 # The basic idea:
 #
@@ -62,7 +62,7 @@ class Eyeball:
 
 
 # Class-level Constants
-Eyeball.NORMAL = Eyeball(0, 'normal', COLOR_GREEN, [
+Eyeball.NORMAL = Eyeball(0, 'normal', COLOR_DIM_GREEN, [
     [0, 1, 1, 1, 0],
     [1, 0, 0, 0, 1],
     [1, 0, 0, 0, 1],
@@ -260,6 +260,30 @@ Eyeball.LOOK_PORT_AFT = Eyeball(24, 'look-port-aft', COLOR_YELLOW, [
     [0, 0, 0, 1, 0],
     [0, 0, 1, 0, 0],
     [0, 1, 0, 0, 0]
+])
+
+Eyeball.OPENING_3 = Eyeball(25, 'opening-3', COLOR_DIM_GREEN, [
+    [0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+    [0, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0]
+])
+
+Eyeball.OPENING_2 = Eyeball(26, 'opening-2', COLOR_DIM_GREEN, [
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0]
+])
+
+Eyeball.OPENING_1 = Eyeball(27, 'opening-1', COLOR_DIM_GREEN, [
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0]
 ])
 
 #EOF

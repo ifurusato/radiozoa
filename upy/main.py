@@ -52,8 +52,10 @@ def print_sysinfo():
 
 # main ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
-_rros = None
-_pixel = Pixel(pin=48, pixel_count=1, color_order='GRB', brightness=0.3)
+_config = None
+_rros   = None
+_relay_setup = None
+_pixel = Pixel(pin=48, pixel_count=1, color_order='GRB', brightness=0.5)
 
 try:
 
@@ -68,12 +70,15 @@ try:
         from relay_setup import RelaySetup
 
         _config = ConfigLoader.configure('relay.yaml')
-        relay_setup = RelaySetup(_config, _rros.message_bus, _rros.message_factory, _rros.pixel, level=Level.INFO);
+        _relay_setup = RelaySetup(_config, _rros.message_bus, _rros.message_factory, _rros.pixel, level=Level.INFO);
 
         log.info('relay ready.')
 
     # blocks until completion
     _rros.enable()
+
+    # show eyeballs closing
+    _rros.indicate_shutdown()
 
 except KeyboardInterrupt:
     log.info('interrupted.')
@@ -83,6 +88,11 @@ except Exception as e:
 finally:
     if _rros:
         _rros.close()
+    _config      = None
+    _rros        = None
+    _relay_setup = None
+    _pixel       = None
     log.info("complete.")
+    log          = None
 
 #EOF

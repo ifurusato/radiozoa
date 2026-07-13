@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-07-12
+# modified: 2026-07-13
 
 import asyncio
 import time
@@ -17,6 +17,9 @@ from colorama import Fore, Style
 
 from colors import *
 from pixel import Pixel
+from eyeball import Eyeball
+from eyeballs import Eyeballs
+from orientation import Orientation
 from config_loader import ConfigLoader
 from component import Component
 from dip_switch import DipSwitch
@@ -49,24 +52,12 @@ class RROS(Component):
         self._radiozoa_enabled = self._config['rros']['radiozoa']['enabled']
         self._roam_enabled     = self._config['rros']['roam']['enabled']
         self._drive_enabled    = self._config['rros']['drive']['enabled']
+        self._eyeballs_enabled = self._config['rros']['eyeballs']['enabled']
         self._motor_controller_enabled = self._config['rros']['motor_controller']['enabled']
         self._remote_control_enabled   = self._config['rros']['remote_control']['enabled']
         self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}; drive enabled? {}'.format(
             self._radiozoa_enabled, self._roam_enabled, self._drive_enabled) + Style.RESET_ALL)
         self._closing = False
-        # pixel and ring ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        if pixel:
-            self._pixel = pixel
-        else:
-            self._pixel = Pixel(pin=48, pixel_count=1, color_order='GRB', brightness=0.1)
-        if ring:
-            self._ring  = ring
-        else:
-            self._ring  = Pixel(pin=21, pixel_count=24, color_order='GRB', brightness=0.1)
-#       self._ring.set_color(3, COLOR_BLUE)
-        # message bus ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._message_bus = MessageBus(level=self._level)
-        self._message_factory = MessageFactory(message_bus=self._message_bus, level=self._level)
         # create I2C bus ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._log.info('configuring I2C bus…')
         _i2c_cfg = self._config['rros']['i2c']
@@ -75,6 +66,27 @@ class RROS(Component):
         _sda     = _i2c_cfg['sda']
         _i2c_baud_rate = _i2c_cfg['baud_rate'] # 400_000
         self._i2c = I2C(_i2c_id, scl=_scl, sda=_sda, freq=_i2c_baud_rate)
+        # visual indicators ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        if self._eyeballs_enabled:
+            self._log.info('creating eyeballs…')
+            self._eyeballs = Eyeballs(self._i2c)
+            self._log.info('😨 showing OPENING 1…')
+            self._eyeballs.show_eyeball(Orientation.ALL, Eyeball.OPENING_1)
+            time.sleep_ms(200)
+        else:
+            self._eyeballs = None
+        if pixel:
+            self._pixel = pixel
+        else:
+            self._pixel = Pixel(pin=48, pixel_count=1, color_order='GRB', brightness=0.1)
+        if ring:
+            self._ring  = ring
+        else:
+            self._ring  = Pixel(pin=21, pixel_count=24, color_order='GRB', brightness=0.1)
+        # message bus ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._message_bus = MessageBus(level=self._level)
+        self._message_factory = MessageFactory(message_bus=self._message_bus, level=self._level)
+        # objects ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self.devices        = []
         self._sensor        = None
         self._visualiser    = None
@@ -94,6 +106,9 @@ class RROS(Component):
             self._log.warn('no ring visualiser.')
             self._visualiser = None
         self._configure_radiozoa = self._radiozoa_enabled
+        if self._eyeballs:
+            self._eyeballs.show_eyeball(Orientation.ALL, Eyeball.OPENING_2)
+            time.sleep_ms(200)
         if self._configure_radiozoa:
             # configure sensor addresses synchronously before async loop starts
             self._log.info('configuring radiozoa…')
@@ -145,6 +160,9 @@ class RROS(Component):
         self._drive = Drive(config=self._config, message_bus=self._message_bus, message_factory=self._message_factory, motor_controller=self._motor_ctrl)
         if self._pixel:
             self._pixel.set_color(color=COLOR_DARK_CYAN)
+        if self._eyeballs:
+            self._eyeballs.show_eyeball(Orientation.ALL, Eyeball.OPENING_3)
+            time.sleep_ms(200)
         self._log.info(Fore.GREEN + 'ready.' + Style.RESET_ALL)
 
     # components-as-properties ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -179,8 +197,8 @@ class RROS(Component):
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
-    async def run(self):
-        self._log.info(Fore.GREEN + 'run…' + Style.RESET_ALL)
+    async def _start(self):
+        self._log.info(Fore.GREEN + 'starting…' + Style.RESET_ALL)
         if self._sensor:
             self._sensor.start_ranging()
         else:
@@ -198,17 +216,33 @@ class RROS(Component):
         registry = Component.get_registry()
         self._log.info('active components:')
         registry.print_registry()
-        self._log.info(Fore.GREEN + 'running…' + Style.RESET_ALL)
-        self._message_bus.enable() # start message bus loop
+        if self._eyeballs:
+            self._eyeballs.normal()
+        self._log.info(Fore.GREEN + 'started.' + Style.RESET_ALL)
+        self._message_bus.enable() # blocking: start message bus loop
 
     def enable(self):
         if not self.enabled:
             super().enable()
-            asyncio.run(self.run())
+            asyncio.run(self._start())
         else:
             self._log.warn('already enabled.')
 
     # closing ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def indicate_shutdown(self):
+        '''
+        Performs a visual indication of shutdown.
+        '''
+        self._log.info('indicating shutdown…')
+        if self._eyeballs:
+            _eyeballs = [ Eyeball.NORMAL, Eyeball.OPENING_3, Eyeball.OPENING_2, Eyeball.OPENING_1 ]
+            for _eyeball in _eyeballs:
+                self._eyeballs.show_eyeball(Orientation.ALL, _eyeball)
+                time.sleep_ms(500)
+            self._eyeballs.clear()
+            self._eyeballs.update()
+        self._log.info('shutdown complete.')
 
     async def _close_and_execute(self):
         await self._close_open_components()
@@ -242,6 +276,7 @@ class RROS(Component):
             if (not component.closed
                     and component is not self
                     and component is not self._pixel
+                    and component is not self._eyeballs
                     and component is not self._message_bus)
         }
         self._log.info('closing {}/{} open components…'.format(len(components), total))

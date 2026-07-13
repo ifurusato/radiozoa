@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2024-08-14
-# modified: 2026-03-02
+# modified: 2026-07-13
 
 class Color:
     _registry = []
@@ -92,7 +92,7 @@ COLOR_YELLOW         = Color("COLOR_YELLOW",       (250, 150,   0))
 COLOR_GREY           = Color("COLOR_GREY",         ( 40,  40,  40))
 
 COLOR_DARK_RED       = Color("COLOR_DARK_RED",     ( 22,   0,   0))
-COLOR_DARK_GREEN     = Color("COLOR_DARK_GREEN",   (  0,  24,   0))
+COLOR_DARK_GREEN     = Color("COLOR_DARK_GREEN",   (  0,  64,   0))
 COLOR_DARK_BLUE      = Color("COLOR_DARK_BLUE",    (  0,   0,  32))
 COLOR_DARK_CYAN      = Color("COLOR_DARK_CYAN",    (  0,  28,  28))
 COLOR_DARK_MAGENTA   = Color("COLOR_DARK_MAGENTA", ( 28,   0,  28))
@@ -110,6 +110,7 @@ COLOR_CUCUMBER       = Color("COLOR_CUCUMBER",     ( 22,  70,   0))
 COLOR_DEEP_CYAN      = Color("COLOR_DEEP_CYAN",    (  0,  11,  11))
 COLOR_DEEP_FUCHSIA   = Color("COLOR_DEEP_FUCHSIA", ( 80,  11,  36))
 COLOR_DEEP_GREEN     = Color("COLOR_DEEP_GREEN",   (  0,  12,   0))
+COLOR_DIM_GREEN      = Color("COLOR_DIM_GREEN",    (  0, 128,   0))
 COLOR_TURQUOISE      = Color("COLOR_TURQUOISE",    (  0, 110,  80))
 COLOR_EMERALD        = Color("COLOR_EMERALD",      (  0,  90,  10))
 COLOR_FUCHSIA        = Color("COLOR_FUCHSIA",      (158,  16,  99))

@@ -33,7 +33,7 @@ class Pixel(Component):
         self._brightness = brightness
         self._neopixel = NeoPixel(_pin, pixel_count, color_order=color_order, brightness=brightness)
         self.set_color(index=None, color=None)
-        self._log.info('ready.')
+        self._log.info('ready; enabled: {}'.format(self.enabled))
 
     @property
     def pixel_count(self):

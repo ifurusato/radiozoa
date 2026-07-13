@@ -26,6 +26,8 @@ rros:
         verbose:           False
     remote_control:
         enabled:            True
+    eyeballs:
+        enabled:            True
     motor_controller:
         enabled:            True
         verbose:           False

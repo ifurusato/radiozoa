@@ -9,6 +9,8 @@
 # created:  2024-10-23
 # modified: 2026-07-04
 
+import time
+
 from logger import Level, Logger
 from component import Component
 from orientation import Orientation
@@ -97,6 +99,7 @@ class Eyeballs(Component):
             "blank": self.blank,
             "dead": self.dead
         }
+        self._rgbmatrix.clear_all()
         self._log.info('ready.')
 
     def enable(self):
@@ -128,7 +131,7 @@ class Eyeballs(Component):
                     _color = COLOR_BLACK
                 matrix.set_pixel(x, y, _color.red, _color.green, _color.blue)
 
-    def _show(self):
+    def update(self):
         self._port_rgbmatrix.show()
         self._stbd_rgbmatrix.show()
 
@@ -137,82 +140,82 @@ class Eyeballs(Component):
         _eyeball = Eyeball.NORMAL
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def happy(self):
         self._log.debug('happy…')
         _eyeball = Eyeball.HAPPY
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def wink(self):
         self._log.debug('wink…')
         self.set_matrix(Eyeball.WINK_PORT.array, self._port_rgbmatrix, Eyeball.WINK_PORT.color)
         self.set_matrix(Eyeball.WINK_STBD.array, self._stbd_rgbmatrix, Eyeball.WINK_PORT.color)
-        self._show()
+        self.update()
 
     def blush(self):
         self._log.debug('blush…')
         _eyeball = Eyeball.BLUSH
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def look_port(self):
         self._log.debug('look port…')
         _eyeball = Eyeball.LOOK_PORT
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def look_stbd(self):
         self._log.debug('look starboard…')
         _eyeball = Eyeball.LOOK_STBD
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def look_up(self):
         self._log.debug('look up…')
         _eyeball = Eyeball.LOOK_UP
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def look_down(self):
         self._log.debug('look down…')
         _eyeball = Eyeball.LOOK_DOWN
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def confused(self):
         self._log.debug('confused…')
         self.set_matrix(Eyeball.CONFUSED_STBD.array, self._port_rgbmatrix, Eyeball.CONFUSED_STBD.color)
         self.set_matrix(Eyeball.CONFUSED_PORT.array, self._stbd_rgbmatrix, Eyeball.CONFUSED_PORT.color)
-        self._show()
+        self.update()
 
     def sleepy(self):
         self._log.debug('sleepy…')
         _eyeball = Eyeball.SLEEPY
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def sad(self):
         self._log.debug('sad…')
         _eyeball = Eyeball.SAD
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def blank(self):
         self._log.debug('blank…')
         _eyeball = Eyeball.BLANK
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def dead(self):
         self._log.debug('dead…')
@@ -226,28 +229,36 @@ class Eyeballs(Component):
         _eyeball = Eyeball.LOOK_PORT_FWD
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def look_stbd_fwd(self):
         self._log.debug('look forward to starboard…')
         _eyeball = Eyeball.LOOK_STBD_FWD
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def look_port_aft(self):
         self._log.debug('look aft to port…')
         _eyeball = Eyeball.LOOK_PORT_AFT
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
 
     def look_stbd_aft(self):
         self._log.debug('look aft to starboard…')
         _eyeball = Eyeball.LOOK_STBD_AFT
         self.set_matrix(_eyeball.array, self._port_rgbmatrix, _eyeball.color)
         self.set_matrix(_eyeball.array, self._stbd_rgbmatrix, _eyeball.color)
-        self._show()
+        self.update()
+
+    def show_eyeball(self, orientation, eyeball):
+        self._log.debug('show {} on {}…'.format(eyeball.name, orientation.name))
+        if orientation is Orientation.PORT or orientation is Orientation.ALL:
+            self.set_matrix(eyeball.array, self._port_rgbmatrix, eyeball.color)
+        if orientation is Orientation.STBD or orientation is Orientation.ALL:
+            self.set_matrix(eyeball.array, self._stbd_rgbmatrix, eyeball.color)
+        self.update()
 
     def close(self):
         if not self.closed:
