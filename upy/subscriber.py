@@ -48,6 +48,9 @@ class Subscriber(Component):
         for _event in events:
             self._events.append(_event)
 
+    def clear_events(self):
+        self._events.clear()
+
     @property
     def events(self):
         return self._events

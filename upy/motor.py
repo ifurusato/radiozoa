@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-06-20
+# modified: 2026-07-13
 
 from machine import Pin, PWM
 from colorama import Fore, Style
@@ -72,7 +72,6 @@ class Motor(Component):
                     in1_pin, in2_pin, enc_a_pin, enc_b_pin, freq))
         else:
             self._log.info('in1={}, in2={}, {}Hz (open loop)'.format(in1_pin, in2_pin, freq))
-
         # wheel geometry for odometry
         _wheel_diameter_mm  = 60.0  # was: 59.0
         _motor_encoder_cpr  = 12.0
@@ -82,32 +81,11 @@ class Motor(Component):
         _circumference       = 3.14159265 * _wheel_diameter_mm
         self._mm_per_tick    = _circumference / _ticks_per_wheel_rev
         self._log.info('odometry: {}mm/tick.'.format(self._mm_per_tick))
-
         # odometry
         self._steps         = 0
         self._log.info('ready.')
 
-    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-
-    def enable(self):
-        if not self.enabled:
-            if self._enc_a and self._enc_b:
-                self._enc_a.irq(trigger=Pin.IRQ_RISING, handler=self._enc_irq)
-                self._log.info('enabled (closed loop).')
-            else:
-                self._log.info('enabled (open loop).')
-            super().enable()
-        else:
-            self._log.warn('already enabled.')
-
-    def disable(self):
-        if self.enabled:
-            super().disable()
-            self._log.info('disabled.')
-        else:
-            self._log.warn('already disabled.')
-
-    # encoder ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    # encoder ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     def _enc_irq(self, pin):
         '''
@@ -126,7 +104,7 @@ class Motor(Component):
     def reset_steps(self):
         self._steps = 0
 
-    # odometry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    # odometry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     def get_distance_mm(self):
         '''
@@ -140,7 +118,7 @@ class Motor(Component):
         '''
         self._steps = 0
 
-    # power ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    # power ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     def set_power(self, value):
         '''
@@ -169,7 +147,7 @@ class Motor(Component):
             self._pwm1.duty_u16(0)
             self._pwm2.duty_u16(0)
 
-    # braking ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    # braking ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     def brake(self):
         '''
@@ -186,13 +164,33 @@ class Motor(Component):
         if self.enabled:
             self._execute_hardware_power(0.0)
 
+    # lifecycle ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def enable(self):
+        if not self.enabled:
+            if self._enc_a and self._enc_b:
+                self._enc_a.irq(trigger=Pin.IRQ_RISING, handler=self._enc_irq)
+                self._log.info('enabled (closed loop).')
+            else:
+                self._log.info('enabled (open loop).')
+            super().enable()
+        else:
+            self._log.warn('already enabled.')
+
+    def disable(self):
+        if self.enabled:
+            super().disable()
+            self._log.debug('disabled.')
+        else:
+            self._log.warn('already disabled.')
+
     def close(self):
         if not self.closed:
             self.coast()
             self._pwm1.deinit()
             self._pwm2.deinit()
-            Component.close(self)
-            self._log.info('closed.')
+            super().close()
+            self._log.debug('closed.')
         else:
             self._log.warn('already closed.')
 

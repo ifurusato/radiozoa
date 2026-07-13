@@ -42,7 +42,6 @@ class MessageFactory(Component):
         if self._initialized:
             return
         self._initialized = True
-
         Component.__init__(self, "msg-factory", suppressed=False, enabled=True, level=level)
         if message_bus is None:
             raise ValueError('null message bus argument.')

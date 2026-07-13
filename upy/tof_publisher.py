@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-07-12
+# modified: 2026-07-13
 
 import sys
 import asyncio
@@ -38,24 +38,22 @@ class ToFPublisher(Publisher):
         self._sensor  = sensor
         self._poll_ms = poll_ms
         self._poll_loop_task = None
-        self._log.info('😛 ready; id: {}'.format(self.uuid))
+        self._log.info('ready')
 
     def enable(self):
         if not self.enabled:
             super().enable()
             self._poll_loop_task = asyncio.create_task(self._poll_loop())
-            self._log.info('😛 enabled; id: {}'.format(self.uuid))
-#           self._log.info('😛 enabled.')
+            self._log.debug('enabled.')
         else:
             self._log.warn('already enabled.')
 
     def disable(self):
         if self.enabled:
             super().disable()
-            time.sleep_ms(2 * self._poll_ms)
             if self._poll_loop_task:
                 self._poll_loop_task.cancel()
-            self._log.info('😛 disabled.')
+            self._log.debug('disabled.')
         else:
             self._log.warn('already disabled.')
 
@@ -92,7 +90,7 @@ class ToFPublisher(Publisher):
         '''
         Async poll loop: reads all eight sensors and publishes distances while enabled.
         '''
-        self._log.info('😛 starting poll loop…')
+        self._log.info('starting poll loop…')
         while self.enabled:
             try:
                 _distances = await self._sensor.get_distances_async()

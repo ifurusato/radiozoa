@@ -9,8 +9,9 @@
 # created:  2026-06-04
 # modified: 2026-07-12
 
-from machine import I2C
 import asyncio
+import time
+from machine import I2C
 
 from colorama import Fore, Style
 
@@ -43,7 +44,7 @@ class RROS(Component):
     '''
     def __init__(self, pixel=None, ring=None, level=Level.INFO):
         self._level  = level
-        Component.__init__(self, RROS.NAME, suppressed=False, enabled=True, level=self._level)
+        Component.__init__(self, RROS.NAME, suppressed=False, enabled=False, level=self._level)
         self._config = ConfigLoader.configure('config.yaml')
         self._radiozoa_enabled = self._config['rros']['radiozoa']['enabled']
         self._roam_enabled     = self._config['rros']['roam']['enabled']
@@ -52,6 +53,7 @@ class RROS(Component):
         self._remote_control_enabled   = self._config['rros']['remote_control']['enabled']
         self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}; drive enabled? {}'.format(
             self._radiozoa_enabled, self._roam_enabled, self._drive_enabled) + Style.RESET_ALL)
+        self._closing = False
         # pixel and ring ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         if pixel:
             self._pixel = pixel
@@ -191,37 +193,82 @@ class RROS(Component):
             self._roam.enable()
         if self._drive_enabled:
             self._drive.enable() # after delay, drive will enable motor controller
-        self._message_bus.enable() # asyncio.create_task(self._message_bus._start_consuming())
         self._motor_ctrl.enable()
         self._pixel.set_color(color=COLOR_DEEP_CYAN)
+        registry = Component.get_registry()
+        self._log.info('active components:')
+        registry.print_registry()
         self._log.info(Fore.GREEN + 'running…' + Style.RESET_ALL)
-        # yield control to the event loop so scheduled tasks can begin execution
-#       await asyncio.sleep_ms(0)
-        while True:
-            await asyncio.sleep_ms(100)
+        self._message_bus.enable() # start message bus loop
 
-    def start(self):
-        asyncio.run(self.run())
+    def enable(self):
+        if not self.enabled:
+            super().enable()
+            asyncio.run(self.run())
+        else:
+            self._log.warn('already enabled.')
+
+    # closing ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    async def _close_and_execute(self):
+        await self._close_open_components()
+        self._execute_after_close()
+
+    def _execute_after_close(self):
+        super().close()
+        registry = Component.get_registry()
+        count = registry.count_open_components()
+        if count > 1:
+            self._log.warn('rros still has {} open components…'.format(count))
+            registry.print_registry()
+        else:
+            self._log.info('all components closed.')
+        self._log.info('closing message bus…')
+        if self._message_bus:
+            self._message_bus.close()
+        self._pixel.set_color(color=COLOR_DARK_GREEN)
+        self._log.info('message bus closed.')
+
+    async def _close_open_components(self):
+        poll_interval_ms = 5
+        timeout_ms       = 20
+        count = 0
+        registry = Component.get_registry()
+        total = len(registry.all())
+        # create dict of closeable components, ignoring rros, pixel and message bus
+        components = {
+            key: component
+            for key, component in registry.items()
+            if (not component.closed
+                    and component is not self
+                    and component is not self._pixel
+                    and component is not self._message_bus)
+        }
+        self._log.info('closing {}/{} open components…'.format(len(components), total))
+        for component in components.values():
+            count += 1
+            name = component.name
+            self._log.debug('closing {}…'.format(name))
+            component.close()
+            # poll closed property with a 50ms timeout
+            elapsed_ms = 0
+            while not component.closed and elapsed_ms < timeout_ms:
+                await asyncio.sleep_ms(poll_interval_ms)
+                elapsed_ms += poll_interval_ms
+            if not component.closed:
+                self._log.warn('timeout: component {} did not close within {}ms'.format(name, timeout_ms))
+            else:
+                self._log.debug('{} closed.'.format(name))
+
+        await asyncio.sleep_ms(200)
+        self._log.info('{} components closed.'.format(count))
 
     def close(self):
-        if not self.closed:
-            if self._visualiser:
-                self._visualiser.close()
-            if self._motor_ctrl:
-                self._motor_ctrl.close()
-            if self._tof_publisher:
-                self._tof_publisher.close()
-            if self._roam:
-                self._roam.close()
-            if self._radiozoa:
-                self._radiozoa.close()
-            if self._message_bus:
-                self._message_bus.close()
-            if self._pixel:
-                self._pixel.close()
-            if self._ring:
-                self._ring.close()
-            super().close()
+        if not self.closed and not self._closing:
+            self._closing = True
+            asyncio.create_task(self._close_and_execute())
+            self._log.info('application closed.')
+            self._closing = False
         else:
             self._log.warn('already closed.')
 

@@ -60,6 +60,6 @@ class Behaviour(Subscriber):
 
     def close(self):
         self.clear_intent_vector()
-        Subscriber.close(self)
+        super().close()
 
 #EOF

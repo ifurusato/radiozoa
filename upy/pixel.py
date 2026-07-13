@@ -83,6 +83,7 @@ class Pixel(Component):
     def close(self):
         if not self.closed:
             self.off()
+            super().close()
         else:
             self._log.warn('already closed.')
 

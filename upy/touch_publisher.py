@@ -66,7 +66,7 @@ class TouchPublisher(Publisher):
             if self._task is None:
                 self._task = asyncio.create_task(self._run())
             super().enable()
-            self._log.info('enabled.')
+            self._log.debug('enabled.')
         else:
             self._log.warn('already enabled.')
 
@@ -79,7 +79,7 @@ class TouchPublisher(Publisher):
                 self._task.cancel()
                 self._task = None
             super().disable()
-            self._log.warn('disabled.')
+            self._log.debug('disabled.')
         else:
             self._log.warn('already disabled.')
 

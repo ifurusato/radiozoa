@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-07-10
-# modified: 2026-07-10
+# modified: 2026-07-13
 
 import asyncio
 from colorama import Fore, Style
@@ -70,7 +70,11 @@ class RemoteControl(Behaviour):
         '''
         Decodes the message payload back into an ExplorerButton instance.
         '''
-        self._log.info('process message: ' + Fore.GREEN + '{}'.format(message))
+        self._log.info('process message: ' 
+                + Fore.GREEN + '{}'.format(message.id)
+                + Fore.CYAN + '; value; '
+                + Fore.GREEN + '{}'.format(message.value)
+            )
         button_name = message.value
         button = ExplorerButton.by_name(button_name)
         if button is not None:
@@ -86,7 +90,7 @@ class RemoteControl(Behaviour):
         handler = self._button_handlers.get(button.id)
         if handler is not None:
             if handler():
-                if self._led_task is not None:
+                if self._led_task:
                     self._led_task.cancel()
                 self._led_task = asyncio.create_task(self._flash_led(button.color, 1000))
         else:
@@ -184,6 +188,23 @@ class RemoteControl(Behaviour):
     def _handle_button_y(self):
         self._log.info('button Y')
         return True
+
+    def disable(self):
+        if self.enabled:
+            self.clear_events()
+            if self._led_task:
+                self._led_task.cancel()
+            self._log.debug('disabled.')
+            super().disable()
+        else:
+            self._log.warn('already disabled.')
+
+    def close(self):
+        if not self.closed:
+            super().close()
+            self._log.debug('closed.')
+        else:
+            self._log.warn('already closed.')
 
     # utility ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 

@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2021-06-29
-# modified: 2026-06-18
+# modified: 2026-07-13
 
 from logger import Logger, Level
 from component_registry import ComponentRegistry
@@ -81,21 +81,12 @@ class Component:
     def closed(self):
         return self._closed
 
-    def enable(self):
-        if self._closed:
-            self._log.warn('already closed.')
-        elif not self._enabled:
-            self._enabled = True
-            self._log.info('enabled.')
-        else:
-            self._log.warn('already enabled.')
-
-    def disable(self):
-        if not self._enabled:
-            self._log.warn('already disabled.')
-        else:
-            self._enabled = False
-            self._log.info('disabled.')
+    @property
+    def classname(self):
+        '''
+        Return the name of this Component's class.
+        '''
+        return type(self).__name__
 
     def suppress(self):
         self._suppressed = True
@@ -105,19 +96,29 @@ class Component:
         self._suppressed = False
         self._log.info('released.')
 
-    @property
-    def classname(self):
-        '''
-        Return the name of this Component's class.
-        '''
-        return type(self).__name__
+    def enable(self):
+        if self._closed:
+            self._log.warn('already closed.')
+        elif not self._enabled:
+            self._enabled = True
+            self._log.debug('enabled.')
+        else:
+            self._log.warn('already enabled.')
+
+    def disable(self):
+        if self._enabled:
+            self._enabled = False
+            self._log.debug('disabled.')
+        else:
+            self._log.warn('already disabled.')
 
     def close(self):
         if not self._closed:
-            self.disable()
+            if self.enabled:
+                self.disable()
             Component.__registry.deregister(self)
             self._closed = True
-            self._log.info('closed.')
+            self._log.debug('closed.')
         else:
             self._log.warn('already closed.')
 

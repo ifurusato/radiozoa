@@ -73,7 +73,7 @@ try:
         log.info('relay ready.')
 
     # blocks until completion
-    _rros.start()
+    _rros.enable()
 
 except KeyboardInterrupt:
     log.info('interrupted.')

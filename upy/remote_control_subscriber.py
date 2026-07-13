@@ -72,7 +72,7 @@ class RemoteControlSubscriber(TouchSubscriber):
         Enable/disable the ring visualiser, the motor controller's and roam's
         visualiser settings.
         '''
-        self._log.info('button 1')
+        self._log.info('button 1: toggle radiozoa')
         if self._led_task is not None:
             self._led_task.cancel()
         self._led_task = asyncio.create_task(self._flash_led(COLOR_PEAR, 2000))
@@ -110,12 +110,18 @@ class RemoteControlSubscriber(TouchSubscriber):
         return False
 
     def _handle_button_2(self):
-        self._log.info('button 2')
+        self._log.info('button 2: toggle motor controller.')
+        _motor_controller = self._rros.motor_controller
+        if _motor_controller.enabled:
+            _motor_controller.disable()
+        else:
+            _motor_controller.enable()
         return True
 
     def _handle_button_3(self):
-        self._log.info('button 3')
-        return True
+        self._log.info('button 3: close rros.')
+        self._rros.close()
+        return False
 
     def _handle_button_a(self):
         self._log.info('button A')

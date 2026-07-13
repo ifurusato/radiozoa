@@ -513,20 +513,21 @@ class MotorController(Component):
 
     def enable(self):
         if not self.enabled:
+            super().enable()
             self._motor_port.enable()
             self._motor_stbd.enable()
             if self._run_task is None:
                 self._stop = False
                 self._run_task = asyncio.create_task(self._poll_loop())
+                self._log.debug('enabled.')
             else:
                 self._log.warn('run task already active.')
-            Component.enable(self)
-            self._log.info('enabled.')
         else:
             self._log.warn('already enabled.')
 
     def disable(self):
         if self.enabled:
+            super().disable()
             if self._visualiser:
                 self._visualiser.off(self._pin_port_pix1)
                 self._visualiser.off(self._pin_port_pix2)
@@ -537,16 +538,16 @@ class MotorController(Component):
             self._motor_stbd.disable()
             self._stop = True
             if self._run_task:
-#               self._run_task.cancel() # cannot cancel from same context
                 self._run_task = None
-            Component.disable(self)
-            self._log.info('disabled.')
+            self._log.debug('disabled.')
         else:
             self._log.warn('already disabled.')
 
     def close(self):
         if not self.closed:
-            Component.close(self)
-            self._log.info('closed.')
+            super().close()
+            self._log.debug('closed.')
+        else:
+            self._log.warn('already closed.')
 
 #EOF
