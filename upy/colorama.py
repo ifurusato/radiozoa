@@ -6,7 +6,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2024-04-20
-# modified: 2024-04-20
+# modified: 2026-07-15
 
 class Fore:
     BLACK      = "\033[30m"
@@ -21,15 +21,22 @@ class Fore:
     LT_GREY    = "\033[37m"
     DK_GREY    = "\033[90m"
     LT_RED     = "\033[91m"
-    LT_GREEN   = "\033[92m"
+    LT_GREEN   =  "\033[92m"
     LT_YELLOW  = "\033[93m"
     LT_BLUE    = "\033[94m"
     LT_MAGENTA = "\033[95m"
     LT_CYAN    = "\033[96m"
 
-    def __init__(self):
-        super().__init__()
-        pass
+    _registry = []
+
+    for _k, _v in list(locals().items()):
+        if not _k.startswith("_"):
+            _registry.append(_v)
+    del _k, _v
+
+    @staticmethod
+    def get_codes():
+        return Fore._registry
 
 class Style:
     RESET_ALL  = "\033[0m"
@@ -40,8 +47,15 @@ class Style:
     UNDERLINE  = "\033[4m"
     BLINKING   = "\033[5m"
 
-    def __init__(self):
-        super().__init__()
-        pass
+    _registry = []
+
+    for _k, _v in list(locals().items()):
+        if not _k.startswith("_"):
+            _registry.append(_v)
+    del _k, _v
+
+    @staticmethod
+    def get_codes():
+        return Style._registry
 
 #EOF

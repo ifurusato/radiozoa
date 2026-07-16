@@ -217,6 +217,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# miscellaneous files
+# miscellaneous and log files
 archive/
+upy/log_*.txt
 

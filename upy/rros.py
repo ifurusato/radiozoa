@@ -1,4 +1,4 @@
-#!/micropython
+#!/micropythoj
 # -*- coding: utf-8 -*-
 #
 # Copyright 2020-2026 by Ichiro Furusato. All rights reserved. This file is part
@@ -47,8 +47,13 @@ class RROS(Component):
     '''
     def __init__(self, pixel=None, ring=None, level=Level.INFO):
         self._level  = level
-        Component.__init__(self, RROS.NAME, suppressed=False, enabled=False, level=self._level)
         self._config = ConfigLoader.configure('config.yaml')
+        _log_to_file = self._config['rros']['application']['log_to_file']
+        if _log_to_file:
+            _log = Logger(RROS.NAME, log_to_file=True, level=Level.INFO)
+            Component.__init__(self, _log, suppressed=False, enabled=False, level=self._level)
+        else:
+            Component.__init__(self, RROS.NAME, suppressed=False, enabled=False, level=self._level)
         self._radiozoa_enabled = self._config['rros']['radiozoa']['enabled']
         self._roam_enabled     = self._config['rros']['roam']['enabled']
         self._drive_enabled    = self._config['rros']['drive']['enabled']
@@ -70,7 +75,6 @@ class RROS(Component):
         if self._eyeballs_enabled:
             self._log.info('creating eyeballs…')
             self._eyeballs = Eyeballs(self._i2c)
-            self._log.info('😨 showing OPENING 1…')
             self._eyeballs.show_eyeball(Orientation.ALL, Eyeball.OPENING_1)
             time.sleep_ms(200)
         else:
@@ -100,7 +104,6 @@ class RROS(Component):
             self._log.info('creating ring visualiser…')
             self._visualiser = RingVisualiser(self._ring, self._message_bus, level=self._level)
             self._visualiser.set_brightness(0.2)
-#           self._visualiser.set_brighten(True)
             self._visualiser.enable() # default enabled
         else:
             self._log.warn('no ring visualiser.')
@@ -113,7 +116,7 @@ class RROS(Component):
             # configure sensor addresses synchronously before async loop starts
             self._log.info('configuring radiozoa…')
             self._radiozoa_config = RadiozoaConfig(config=self._config, i2c=self._i2c, visualiser=self._visualiser, level=self._level)
-            self._radiozoa_config.configure(self.continue_init)
+            self._radiozoa_config.configure(self.continue_init) # as callback
         else:
             self._radiozoa_config = None
             self.continue_init()
@@ -243,6 +246,8 @@ class RROS(Component):
             self._eyeballs.clear()
             self._eyeballs.update()
         self._log.info('shutdown complete.')
+        self._log.close()
+        print(Fore.CYAN + Style.DIM + 'log closed.' + Style.RESET_ALL)
 
     async def _close_and_execute(self):
         await self._close_open_components()

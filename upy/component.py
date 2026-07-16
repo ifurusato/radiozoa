@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2021-06-29
-# modified: 2026-07-13
+# modified: 2026-07-15
 
 from logger import Logger, Level
 from component_registry import ComponentRegistry
@@ -21,19 +21,25 @@ class Component:
 
     All Components are automatically added to the ComponentRegistry, which is
     an alternative means of gaining access to them within the application, by
-    name.
+    name as key.
 
-    :param name:       the component name
-    :param suppressed: initial suppressed state (default False)
-    :param enabled:    initial enabled state (default False)
+    :param name:         either the component name, or a Logger instance
+    :param suppressed:   initial suppressed state (default False)
+    :param enabled:      initial enabled state (default False)
     '''
     def __init__(self, name, suppressed=False, enabled=False, level=Level.INFO):
         if name is None:
             raise ValueError('null name argument.')
+        elif isinstance(name, str):
+            self._name   = name
+            self._log    = Logger(self._name, level)
+        elif isinstance(name, Logger):
+            self._log    = name
+            self._name   = self._log.name
+        else:
+            raise ValueError('invalid name (or Logger) argument type: {}'.format(type(name)))
         super().__init__()
         self._uuid       = uuid4()
-        self._name       = name
-        self._log        = Logger(name, level)
         self._suppressed = suppressed
         self._enabled    = enabled
         if not Component.__registry.has(self._log.name): # properly handle multiple inheritance

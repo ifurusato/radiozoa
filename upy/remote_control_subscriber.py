@@ -54,6 +54,7 @@ class RemoteControlSubscriber(TouchSubscriber):
         }
         _registry = Component.get_registry()
         self._roam = _registry.get('beh:roam')
+        self._eyeballs = _registry.get('eyeballs')
         self._tof_publisher = _registry.get('pub:tof-pub')
         # ready.
 
@@ -74,7 +75,7 @@ class RemoteControlSubscriber(TouchSubscriber):
     def _handle_button_1(self):
         '''
         Enable/disable the ring visualiser, the motor controller's and roam's
-        visualiser settings.
+        visualiser settings, and the eyeballs display.
         '''
         self._log.info('button 1: toggle radiozoa')
         if self._led_task is not None:
@@ -91,6 +92,13 @@ class RemoteControlSubscriber(TouchSubscriber):
                 self._log.info('button 1: visualiser enabled.')
         else:
             self._log.warn('no visualiser available.')
+
+        if self._eyeballs:
+            if _enabled:
+                self._eyeballs.off();
+            else:
+                self._eyeballs.normal();
+
         # disable the motor controller's visualiser
         _motor_controller = self._rros.motor_controller
         if _motor_controller:
@@ -133,7 +141,8 @@ class RemoteControlSubscriber(TouchSubscriber):
         return True
 
     def _handle_button_b(self):
-        self._log.info('button B')
+        self._log.info('button B: import test_iv')
+        import test_iv
         return True
 
     def _handle_button_x(self):

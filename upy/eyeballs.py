@@ -119,6 +119,10 @@ class Eyeballs(Component):
             return self._movements[method_name]()
         raise AttributeError("'{:s}' has no method '{:s}()'".format(self.__class__.__name__, method_name))
 
+    def off(self):
+        self._rgbmatrix.clear_all()
+        self.update()
+
     def clear(self):
         self._rgbmatrix.clear_all()
 

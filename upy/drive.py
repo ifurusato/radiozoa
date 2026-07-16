@@ -7,10 +7,9 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-18
-# modified: 2026-07-03
+# modified: 2026-07-13
 
 import asyncio
-import itertools
 from math import sqrt
 from colorama import Fore, Style
 
@@ -63,7 +62,6 @@ class Drive(Behaviour, Publisher):
         # analog controller ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._pin_analog  = _cfg['pin_analog']
         self._startup_delay = _cfg['startup_delay'] # in seconds
-        self._counter     = itertools.count()
         self._control     = AnalogControl(config)
         self._bias        = 0.0
         self._last_bias   = 0.0

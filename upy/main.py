@@ -86,7 +86,7 @@ except Exception as e:
     log.error('{} raised: {}'.format(type(e), e))
     sys.print_exception(e)
 finally:
-    if _rros:
+    if _rros and not _rros.closed:
         _rros.close()
     _config      = None
     _rros        = None

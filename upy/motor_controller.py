@@ -7,10 +7,10 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-06-20
+# modified: 2026-07-13
 
 import asyncio
-
+import itertools
 from colorama import Fore, Style
 
 from logger import Level
@@ -154,6 +154,7 @@ class MotorController(Component):
         self._last_vy              = 0.0
         self._last_omega           = 0.0
         # closed loop mode from config ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._counter              = itertools.count()
         self._closed_loop          = _cfg['closed_loop']
         self._stop                 = False
         self._log.info('{} closed-loop mode.'.format('enabled' if self._closed_loop else 'disabled'))
@@ -362,25 +363,31 @@ class MotorController(Component):
         If a callback has been set it is executed at the end of this method.
         If it is a one shot it is executed a single time.
         '''
-#       self._log.debug('tick: ' + Fore.BLACK + 'steps port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(
-#           self._motor_port.steps, self._motor_stbd.steps, self._velocity_port, self._velocity_stbd))
+        self._count = next(self._counter)
+        if self._count % 10 == 0:
+            self._log.info('tick: ' + Fore.BLACK + 'steps port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(
+                    self._motor_port.steps, self._motor_stbd.steps, self._velocity_port, self._velocity_stbd))
         vx, vy, omega = self._blend_intent_vectors()
+        
         # slew limiting
         vy    = self._slew(self._last_vy,    vy,    self._slew_vy)
         omega = self._slew(self._last_omega, omega, self._slew_omega)
         self._last_vy    = vy
         self._last_omega = omega
+        
         # fold lateral intent into rotation
         omega_final = omega + self._lateral_gain * vx
-        if omega_final >  1.0: omega_final =  1.0
-        elif omega_final < -1.0: omega_final = -1.0
+        
         # differential kinematics
         v_port = vy + omega_final
         v_stbd = vy - omega_final
-        if v_port >  1.0: v_port =  1.0
-        elif v_port < -1.0: v_port = -1.0
-        if v_stbd >  1.0: v_stbd =  1.0
-        elif v_stbd < -1.0: v_stbd = -1.0
+        
+        # proportional normalization to preserve steering ratio
+        max_v = max(abs(v_port), abs(v_stbd))
+        if max_v > 1.0:
+            v_port /= max_v
+            v_stbd /= max_v
+            
         # velocity measurement from step deltas
         _steps_port           = self._motor_port.steps
         _steps_stbd           = self._motor_stbd.steps
@@ -391,7 +398,11 @@ class MotorController(Component):
         _ticks_per_sec        = 1000.0 / self._period_ms
         self._velocity_port   = _delta_port * _ticks_per_sec * self._MM_PER_TICK
         self._velocity_stbd   = _delta_stbd * _ticks_per_sec * self._MM_PER_TICK
-#       self._log.info(Fore.MAGENTA + 'delta port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(_delta_port, _delta_stbd, self._velocity_port, self._velocity_stbd))
+        if self._count % 10 == 0:
+            self._log.info('tick: ' + Fore.MAGENTA 
+                    + 'delta port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(
+                        _delta_port, _delta_stbd, self._velocity_port, self._velocity_stbd))
+        
         # motor drive
         if self._closed_loop:
             _norm_vel_port          = self._velocity_port / self._MAX_VELOCITY_MMS
@@ -404,6 +415,8 @@ class MotorController(Component):
             pid_stbd = self._pid_stbd(_norm_vel_stbd)
             pwr_port = ff_port + pid_port
             pwr_stbd = ff_stbd + pid_stbd
+            
+            # motor power clamping
             if pwr_port >  1.0: pwr_port =  1.0
             elif pwr_port < -1.0: pwr_port = -1.0
             if pwr_stbd >  1.0: pwr_stbd =  1.0

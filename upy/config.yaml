@@ -1,6 +1,8 @@
 # Radiozoa configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
 rros:
+    application:
+        log_to_file:        True
     i2c:
         id:                    1
         scl:                  38
