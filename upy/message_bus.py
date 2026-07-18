@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2020-11-10
-# modified: 2026-07-07
+# modified: 2026-07-18
 
 import asyncio
 from colorama import Fore, Style
@@ -39,10 +39,18 @@ class MessageBus(Component):
         Component.__init__(self, MessageBus.NAME, suppressed=False, enabled=False)
         self._queue       = []
         self._subscribers = []
+        self._callback    = None
         self._enabled     = False
         self._log.info('ready.')
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def add_callback(self, callback):
+        '''
+        Add a single use callback that is executed when the message bus
+        first starts.
+        '''
+        self._callback = callback
 
     def add_subscriber(self, subscriber):
         self._subscribers.append(subscriber)
@@ -99,6 +107,10 @@ class MessageBus(Component):
         '''
         self._log.info(Fore.GREEN + 'message bus loop started.')
         while self.enabled:
+            if self._callback is not None:
+                self._log.info('executing startup callback…')
+                self._callback() 
+                self._callback = None
             if self._queue:
                 _message = self._queue.pop(0)
 #               self._log.debug('consuming message ID: {}; TNID: {}; for {} subscribers.'.format(_message.id, _message.tnid, len(self._subscribers)))

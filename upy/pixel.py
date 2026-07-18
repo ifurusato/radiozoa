@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2025-05-23
-# modified: 2026-06-20
+# modified: 2026-07-18
 
 import time
 from machine import Pin
@@ -19,7 +19,7 @@ from logger import Logger, Level
 class Pixel(Component):
 
     def __init__(self, pin=None, pixel_count=1, color_order='GRB', brightness=0.33, level=Level.INFO):
-        Component.__init__(self, "pixel:{}".format(pixel_count), suppressed=False, enabled=True, level=level)
+        Component.__init__(self, "pixel:{}".format(pixel_count), suppressed=False, enabled=False, level=level)
         if pin is None:
             raise ValueError('pin must be specified.')
         elif isinstance(pin, Pin):
@@ -32,8 +32,22 @@ class Pixel(Component):
         self._pixel_index = 0
         self._brightness = brightness
         self._neopixel = NeoPixel(_pin, pixel_count, color_order=color_order, brightness=brightness)
-        self.set_color(index=None, color=None)
-        self._log.info('ready; enabled: {}'.format(self.enabled))
+        self.off()
+        self._log.info('ready; uuid: {}'.format(self.uuid))
+
+    def enable(self):
+        if self.disabled:
+            super().enable()
+            self._log.info('enabled.')
+        else:
+            self._log.warn('already enabled.')
+
+    def disable(self):
+        if self.enabled:
+            super().disable()
+            self._log.info('disabled.')
+        else:
+            self._log.warn('already disabled.')
 
     @property
     def pixel_count(self):
@@ -58,9 +72,15 @@ class Pixel(Component):
                 break
 
     def show_color(self, color=None):
+        '''
+        A convenience method for a single pixel display.
+        '''
         self.set_color(index=0, color=color)
 
     def set_color(self, index=None, color=None):
+        '''
+        Sets the specified pixel to the color.
+        '''
         if self.enabled:
             _index = self._pixel_index if index is None else index
             if isinstance(color, Color):
@@ -76,6 +96,9 @@ class Pixel(Component):
             self._log.warn('not enabled.')
 
     def off(self):
+        '''
+        Turns off all pixels.
+        '''
         for i in range(self._pixel_count):
             self._neopixel[i] = (0, 0, 0)
         self._neopixel.write()

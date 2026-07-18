@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-06-08
+# modified: 2026-07-18
 
 from math import sqrt
 from colorama import Fore, Style
@@ -30,6 +30,7 @@ _COS = [  1.0,  _R2,  0.0, -_R2, -1.0, -_R2,  0.0,  _R2 ]
 _P = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ]
 
 class Radiozoa(Behaviour):
+    NAME = 'radiozoa'
     '''
     Subscribes to TOF_DISTANCES messages and converts the eight distance
     readings into a (vx, vy, omega) intent vector for the MotorController.
@@ -55,27 +56,41 @@ class Radiozoa(Behaviour):
     _D_MIN        =   40.0
     _D_MAX        = 1000.0
     _D_RANGE      = _D_MAX - _D_MIN   # 960.0
-
     _GAIN_VX      = 0.25  # tune empirically
     _GAIN_VY      = 0.25  # tune empirically
     _GAIN_OMEGA   = 0.40  # tune empirically
-
     _DEADBAND     = 0.02
-
     _PRIORITY_MIN = 0.3   # priority when no obstacles in range
     _PRIORITY_MAX = 1.0   # priority at closest obstacle threshold
 
     def __init__(self, message_bus, motor_controller=None, level=Level.INFO):
-        Behaviour.__init__(self, 'radiozoa', message_bus, level)
+        Behaviour.__init__(self, Radiozoa.NAME, message_bus, level)
         self._motor_controller = motor_controller
         self._priority = self._PRIORITY_MIN
         self.add_event(TOF_DISTANCES)
-        if self._motor_controller is not None:
-            self._motor_controller.add_intent_vector(
-                'radiozoa',
-                lambda: self._intent_vector if self.is_active else (0.0, 0.0, 0.0),
-                lambda: self._priority)
+        self._intent_vector = (0.0, 0.0, 0.0)
         self._log.info('ready.')
+
+    def enable(self):
+        if self.disabled:
+            if self._motor_controller:
+                self._motor_controller.add_intent_vector(
+                    Radiozoa.NAME,
+                    lambda: self._intent_vector if self.is_active else (0.0, 0.0, 0.0),
+                    lambda: self._priority)
+            super().enable()
+            self._log.info('enabled.')
+        else:
+            self._log.warn('already enabled.')
+
+    def disable(self):
+        if self.enabled:
+            if self._motor_controller:
+                self._motor_controller.remove_intent_vector(Radiozoa.NAME)
+            super().disable()
+            self._log.info('disabled.')
+        else:
+            self._log.warn('already disabled.')
 
     async def process_message(self, message):
         self._log.info('processing message: ' + Fore.GREEN + '{}'.format(message))

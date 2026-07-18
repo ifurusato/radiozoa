@@ -61,7 +61,7 @@ rros:
             - id:            "n7"
               name:          "Node 7 - TinyS3 w antenna"
               mac:           "dc:54:75:eb:69:c8"
-              enabled:       True
+              enabled:       False
             - id:            "n8"
               name:          "Node 8 - Radiozoa WeAct ESP32-S3"
               mac:           "10:20:ba:08:b7:84"

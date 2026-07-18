@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-06-20
+# modified: 2026-07-18
 
 import time
 
@@ -28,10 +28,9 @@ class PID:
         self._kd         = kd
         self._min_output = min_output
         self._max_output = max_output
+        self._ki_clamp   = 0.02
         self._setpoint   = 0.0
         self.reset()
-
-    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     @property
     def kp(self):
@@ -78,7 +77,7 @@ class PID:
 #       self._integral  += self._ki * _error * _dt
 #       self._integral   = self._clip(self._integral)
         self._integral  += self._ki * _error * _dt
-        self._integral   = max(min(self._integral, self._max_output * 0.5), self._min_output * 0.5)
+        self._integral   = max(min(self._integral, self._max_output * self._ki_clamp), self._min_output * self._ki_clamp)
         _derivative      = (-self._kd * _d_input / _dt) if _dt > 0.0 else 0.0
         _output          = self._clip(self._kp * _error + self._integral + _derivative)
         self._last_input = measured

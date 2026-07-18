@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-18
-# modified: 2026-07-13
+# modified: 2026-07-18
 
 import asyncio
 from math import sqrt
@@ -26,6 +26,7 @@ from publisher import Publisher
 OUT_OF_RANGE = 9999
 
 class Drive(Behaviour, Publisher):
+    NAME = 'drive'
     '''
     A simple Behaviour that after a startup delay publishes a STARTUP message,
     enables the motor controller, then sets the vy intent vector from a value
@@ -46,8 +47,8 @@ class Drive(Behaviour, Publisher):
     _DEADBAND = 0.02
 
     def __init__(self, config=None, message_bus=None, message_factory=None, motor_controller=None, level=Level.INFO):
-        Behaviour.__init__(self, name='drive', message_bus=message_bus, level=level, _init_base=True)
-        Publisher.__init__(self, name='drive', message_bus=message_bus, message_factory=message_factory, level=level, _init_base=False)
+        Behaviour.__init__(self, name=Drive.NAME, message_bus=message_bus, level=level, _init_base=True)
+        Publisher.__init__(self, name=Drive.NAME, message_bus=message_bus, message_factory=message_factory, level=level, _init_base=False)
         if config is None:
             raise TypeError('configuration argument is null.')
         _cfg = config['rros']['drive']
@@ -69,6 +70,7 @@ class Drive(Behaviour, Publisher):
         self._vx          = 0.0
         self._vy          = 0.0
         self._omega       = 0.0
+        self._intent_vector = (self._vx, self._vy, self._omega)
         self._last_scaled = 0.0
         # external and limit callbacks ┈┈┈┈┈┈┈┈┈┈┈
         self._ext_callback      = None
@@ -76,22 +78,31 @@ class Drive(Behaviour, Publisher):
         self._use_step_limit    = True
         self._step_limit        = 4456 # steps per meter
         self._distance_limit_mm = 4456.0 # 1m
-        # motor control ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._intent_vector = (self._vx, self._vy, self._omega)
-        if self._motor_controller:
-            self._motor_controller.add_intent_vector(
-                'drive',
-                lambda: self._intent_vector,
-                lambda: self._priority)
-        else:
-            self._log.warn('no motor controller available.')
         self._log.info('ready.')
 
     def enable(self):
-        super().enable()
-        if self._enable_task:
-            self._enable_task.cancel()
-        self._enable_task = asyncio.create_task(self._delayed_enable_task())
+        if self.disabled:
+            if self._motor_controller:
+                self._motor_controller.add_intent_vector(
+                    Drive.NAME,
+                    lambda: self._intent_vector if self.is_active else (0.0, 0.0, 0.0),
+                    lambda: self._priority)
+            super().enable()
+            if self._enable_task:
+                self._enable_task.cancel()
+            self._enable_task = asyncio.create_task(self._delayed_enable_task())
+            self._log.info('enabled.')
+        else:
+            self._log.warn('already enabled.')
+
+    def disable(self):
+        if self.enabled:
+            if self._motor_controller:
+                self._motor_controller.remove_intent_vector(Drive.NAME)
+            super().disable()
+            self._log.info('disabled.')
+        else:
+            self._log.warn('already disabled.')
 
     def set_callback(self, callback):
         '''

@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2024-10-23
-# modified: 2026-07-13
+# modified: 2026-07-17
 #
 # The basic idea:
 #
@@ -284,6 +284,93 @@ Eyeball.OPENING_1 = Eyeball(27, 'opening-1', COLOR_DIM_GREEN, [
     [0, 0, 1, 0, 0],
     [0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0]
+])
+
+# gamepad ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+Eyeball.GAMEPAD_A = Eyeball(30, 'gamepad-a', COLOR_AMBER, [
+    [0, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 1]
+])
+Eyeball.GAMEPAD_B = Eyeball(31, 'gamepad-b', COLOR_AMBER, [
+    [1, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+    [1, 1, 1, 1, 0],
+    [1, 0, 0, 0, 1],
+    [1, 1, 1, 1, 0]
+])
+Eyeball.GAMEPAD_X = Eyeball(32, 'gamepad-x', COLOR_AMBER, [
+    [1, 0, 0, 0, 1],
+    [0, 1, 0, 1, 0],
+    [0, 0, 1, 0, 0],
+    [0, 1, 0, 1, 0],
+    [1, 0, 0, 0, 1]
+])
+Eyeball.GAMEPAD_Y = Eyeball(33, 'gamepad-y', COLOR_AMBER, [
+    [1, 0, 0, 0, 1],
+    [0, 1, 0, 1, 0],
+    [0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0]
+])
+Eyeball.GAMEPAD_1 = Eyeball(34, 'gamepad-1', COLOR_AMBER, [
+    [0, 0, 1, 0, 0],
+    [0, 1, 1, 0, 0],
+    [0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0]
+])
+Eyeball.GAMEPAD_2 = Eyeball(35, 'gamepad-2', COLOR_AMBER, [
+    [1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 1],
+    [0, 1, 1, 1, 0],
+    [1, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1]
+])
+Eyeball.GAMEPAD_3 = Eyeball(36, 'gamepad-3', COLOR_AMBER, [
+    [1, 1, 1, 1, 0],
+    [0, 0, 0, 0, 1],
+    [0, 1, 1, 1, 0],
+    [0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 0]
+])
+Eyeball.GAMEPAD_4 = Eyeball(37, 'gamepad-4', COLOR_AMBER, [
+    [1, 0, 1, 0, 0],
+    [1, 0, 1, 0, 0],
+    [1, 1, 1, 1, 1],
+    [0, 0, 1, 0, 0],
+    [0, 0, 1, 0, 0]
+])
+Eyeball.GAMEPAD_UP = Eyeball(38, 'gamepad-up', COLOR_AMBER, [
+    [0, 0, 0, 0, 0],
+    [0, 0, 1, 0, 0],
+    [0, 1, 0, 1, 0],
+    [1, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0]
+])
+Eyeball.GAMEPAD_DN = Eyeball(39, 'gamepad-dn', COLOR_AMBER, [
+    [0, 0, 0, 0, 0],
+    [1, 0, 0, 0, 1],
+    [0, 1, 0, 1, 0],
+    [0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0]
+])
+Eyeball.GAMEPAD_LT = Eyeball(40, 'gamepad-lt', COLOR_AMBER, [
+    [0, 0, 0, 1, 0],
+    [0, 0, 1, 0, 0],
+    [0, 1, 0, 0, 0],
+    [0, 0, 1, 0, 0],
+    [0, 0, 0, 1, 0]
+])
+Eyeball.GAMEPAD_RT = Eyeball(41, 'gamepad-rt', COLOR_AMBER, [
+    [0, 1, 0, 0, 0],
+    [0, 0, 1, 0, 0],
+    [0, 0, 0, 1, 0],
+    [0, 0, 1, 0, 0],
+    [0, 1, 0, 0, 0]
 ])
 
 #EOF

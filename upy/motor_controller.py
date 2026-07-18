@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-07-13
+# modified: 2026-07-18
 
 import asyncio
 import itertools
@@ -54,38 +54,38 @@ class MotorController(Component):
     _MAX_CPS           = 520.0
     # maximum operational velocity in mm/s (corresponds to normalised 1.0)
     _MAX_VELOCITY_MMS  = _MAX_CPS * _MM_PER_TICK
-    # integral clamp
-    _INTEGRAL_LIMIT    = 15.0
 
     def __init__(self, config=None, visualiser=None, level=Level.INFO):
         Component.__init__(self, MotorController.NAME, suppressed=False, enabled=False, level=level)
         if config is None:
             raise TypeError('no configuration provided.')
         _cfg = config['rros']['motor_controller']
-        self._visualiser           = visualiser
-        self._visualise            = _cfg['visualise']
-        self._deadband             = config['rros']['analog_control']['deadband']
+        self._visualiser     = visualiser
+        self._visualise      = _cfg['visualise']
+        self._deadband       = config['rros']['analog_control']['deadband']
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._verbose              = _cfg['verbose']
-        self._visualise_hue        = True
-        self._hue_angle            = 0.875
-        self._period_ms            = _cfg['period_ms']
+        self._verbose        = _cfg['verbose']
+        self._visualise_hue  = True
+        self._hue_angle      = 0.875
+        self._period_ms      = _cfg['period_ms']
+        self._deadband_accel = 0.55
+        self._deadband_decel = 0.40
         # ring pixels for motor speed visualisation ┈┈┈┈┈┈┈┈
-        self._pin_port_pix1        = _cfg['pin_port_pix1']
-        self._pin_port_pix2        = _cfg['pin_port_pix2']
-        self._pin_stbd_pix1        = _cfg['pin_stbd_pix1']
-        self._pin_stbd_pix2        = _cfg['pin_stbd_pix2']
+        self._pin_port_pix1  = _cfg['pin_port_pix1']
+        self._pin_port_pix2  = _cfg['pin_port_pix2']
+        self._pin_stbd_pix1  = _cfg['pin_stbd_pix1']
+        self._pin_stbd_pix2  = _cfg['pin_stbd_pix2']
         # motor pins ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._pin_in1              = _cfg['pin_in1']
-        self._pin_in2              = _cfg['pin_in2']
-        self._pin_in3              = _cfg['pin_in3']
-        self._pin_in4              = _cfg['pin_in4']
+        self._pin_in1        = _cfg['pin_in1']
+        self._pin_in2        = _cfg['pin_in2']
+        self._pin_in3        = _cfg['pin_in3']
+        self._pin_in4        = _cfg['pin_in4']
         self._log.info('motor pins: in1={}; in2={}; in3={}; in4={}'.format(
                 self._pin_in1, self._pin_in2, self._pin_in3, self._pin_in4))
-        self._pin_enc1a            = _cfg['pin_enc1A']
-        self._pin_enc1b            = _cfg['pin_enc1B']
-        self._pin_enc2a            = _cfg['pin_enc2A']
-        self._pin_enc2b            = _cfg['pin_enc2B']
+        self._pin_enc1a      = _cfg['pin_enc1A']
+        self._pin_enc1b      = _cfg['pin_enc1B']
+        self._pin_enc2a      = _cfg['pin_enc2A']
+        self._pin_enc2b      = _cfg['pin_enc2B']
         self._log.info('motor encoders: enc1A={}; enc1B={}; enc2A={}; enc2B={}'.format(
                 self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b))
         self._run_task = None
@@ -106,31 +106,36 @@ class MotorController(Component):
                 level=level)
         # PID controllers ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         _pid_cfg = _cfg['pid']
-        _kp                        = _pid_cfg['kp']      # 0.25
-        _ki                        = _pid_cfg['ki']      # 0.18
-        _kd                        = _pid_cfg['kd']      # 0.003
-        self._pid_port             = PID(name=Orientation.PORT.name, kp= _kp, ki=_ki, kd=_kd)
-        self._pid_stbd             = PID(name=Orientation.STBD.name, kp= _kp, ki=_ki, kd=_kd)
-        self._callback             = None
-        self._condition            = True # or a lambda function
-        self._one_shot             = False
-        self._stopping             = False
+        _kp                  = _pid_cfg['kp']      # 0.25
+        _ki                  = _pid_cfg['ki']      # 0.18
+        _kd                  = _pid_cfg['kd']      # 0.003
+        self._pid_port       = PID(name=Orientation.PORT.name, kp= _kp, ki=_ki, kd=_kd)
+        self._pid_stbd       = PID(name=Orientation.STBD.name, kp= _kp, ki=_ki, kd=_kd)
+        self._callback       = None
+        self._condition      = True # or a lambda function
+        self._one_shot       = False
+        self._stopping       = False
         # feed-forward gain ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._kff                  = _pid_cfg['kff']     # 0.6, was 0.175
+        self._kff            = _pid_cfg['kff']     # 0.6, was 0.175
         # PID setpoints in mm/s ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._setpoint_port        = 0.0
-        self._setpoint_stbd        = 0.0
+        self._setpoint_port  = 0.0
+        self._setpoint_stbd  = 0.0
         # intent vectors registry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._power_scaler         = _cfg['power_scaler'] 
-        self._intent_vectors       = {}
+        self._power_scaler   = _cfg['power_scaler'] 
+        self._intent_vectors = {}
         # lateral gain ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._lateral_gain         = 0.5
+        self._lateral_gain   = 0.5
         # step tracking for velocity measurement ┈┈┈┈┈┈┈┈┈┈┈┈
-        self._last_steps_port      = 0
-        self._last_steps_stbd      = 0
+        self._last_steps_port = 0
+        self._last_steps_stbd = 0
         # measured velocities in mm/s ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._velocity_port        = 0.0
-        self._velocity_stbd        = 0.0
+        self._minimum_power  = 0.03
+        self._velocity_port  = 0.0
+        self._velocity_stbd  = 0.0
+        self._filtered_velocity_port = 0.0
+        self._filtered_velocity_stbd = 0.0
+        self._velocity_filter_alpha  = 0.7  # 0.0 = no filtering; 0.5 = moderate smoothing; 0.8 = strong smoothing
+        self._velocity_filter_initd  = False
         # hardware/visualiser ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._dip_switch = None
         _registry = Component.get_registry()
@@ -147,16 +152,16 @@ class MotorController(Component):
         self._log.info('maximum velocity: {}mm/s.'.format(self._MAX_VELOCITY_MMS))
         # slew limits ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         _slew_cfg = _cfg['slew']
-        self._slew_vy              = _slew_cfg['vy']   # 0.20
-        self._slew_omega           = _slew_cfg['omega']   # 0.20
-#       self._slew_vy              = 0.20
-#       self._slew_omega           = 0.20
-        self._last_vy              = 0.0
-        self._last_omega           = 0.0
+        self._slew_vy        = _slew_cfg['vy']    # 0.20
+        self._slew_omega     = _slew_cfg['omega'] # 0.20
+#       self._slew_vy        = 0.20
+#       self._slew_omega     = 0.20
+        self._last_vy        = 0.0
+        self._last_omega     = 0.0
         # closed loop mode from config ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._counter              = itertools.count()
-        self._closed_loop          = _cfg['closed_loop']
-        self._stop                 = False
+        self._counter        = itertools.count()
+        self._closed_loop    = _cfg['closed_loop']
+        self._stop           = False
         self._log.info('{} closed-loop mode.'.format('enabled' if self._closed_loop else 'disabled'))
         self._log.info('ready.')
 
@@ -224,13 +229,14 @@ class MotorController(Component):
         The vector lambda returns (vx, vy, omega); the priority lambda returns a float.
         Raises if the name is already registered.
         '''
+        self._log.info("adding intent vector: '{}'".format(name))
         if name in self._intent_vectors:
             raise ValueError("intent vector '{}' already registered.".format(name))
         self._intent_vectors[name] = {
             'vector':   vector_lambda,
             'priority': priority_lambda
         }
-        self._log.info('added intent vector: {}'.format(name))
+        self._log.info("added intent vector: '{}' (count: {})".format(name, len(self._intent_vectors)))
 
     def remove_intent_vector(self, name):
         '''
@@ -238,7 +244,7 @@ class MotorController(Component):
         '''
         if name in self._intent_vectors:
             del self._intent_vectors[name]
-            self._log.info('removed intent vector: {}'.format(name))
+            self._log.info("removed intent vector: '{}'".format(name))
 
     def _blend_intent_vectors(self):
         '''
@@ -259,7 +265,7 @@ class MotorController(Component):
         omega   = 0.0
         for entry in self._intent_vectors.values():
             vec = entry['vector']()
-            if vec[0] == 0.0 and vec[1] == 0.0 and vec[2] == 0.0:
+            if vec == (0.0, 0.0, 0.0):
                 continue
             p      = entry['priority']()
             vx    += vec[0] * p
@@ -273,6 +279,7 @@ class MotorController(Component):
             return (0.0, 0.0, 0.0)
         elif self._stopping:
             return (0.0, 0.0, 0.0)
+#       self._log.debug("vector: '{}', '{}', '{}'".format(vx / total_p, vy / total_p, omega / total_p))
         return (vx / total_p, vy / total_p, omega / total_p)
 
     def _slew(self, current, target, max_change):
@@ -363,31 +370,30 @@ class MotorController(Component):
         If a callback has been set it is executed at the end of this method.
         If it is a one shot it is executed a single time.
         '''
-        self._count = next(self._counter)
-        if self._count % 10 == 0:
-            self._log.info('tick: ' + Fore.BLACK + 'steps port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(
-                    self._motor_port.steps, self._motor_stbd.steps, self._velocity_port, self._velocity_stbd))
         vx, vy, omega = self._blend_intent_vectors()
+
+        self._count = next(self._counter)
+        if self._verbose and self._count % 20 == 0:
+            self._log.info('tick: ' + Fore.BLUE 
+                    + 'steps port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}; '.format(
+                        self._motor_port.steps, self._motor_stbd.steps, self._velocity_port, self._velocity_stbd)
+                    + Fore.GREEN + '({}, {}, {})'.format(vx, vy, omega))
         
         # slew limiting
         vy    = self._slew(self._last_vy,    vy,    self._slew_vy)
         omega = self._slew(self._last_omega, omega, self._slew_omega)
         self._last_vy    = vy
         self._last_omega = omega
-        
         # fold lateral intent into rotation
         omega_final = omega + self._lateral_gain * vx
-        
         # differential kinematics
         v_port = vy + omega_final
         v_stbd = vy - omega_final
-        
         # proportional normalization to preserve steering ratio
         max_v = max(abs(v_port), abs(v_stbd))
         if max_v > 1.0:
             v_port /= max_v
             v_stbd /= max_v
-            
         # velocity measurement from step deltas
         _steps_port           = self._motor_port.steps
         _steps_stbd           = self._motor_stbd.steps
@@ -398,15 +404,33 @@ class MotorController(Component):
         _ticks_per_sec        = 1000.0 / self._period_ms
         self._velocity_port   = _delta_port * _ticks_per_sec * self._MM_PER_TICK
         self._velocity_stbd   = _delta_stbd * _ticks_per_sec * self._MM_PER_TICK
-        if self._count % 10 == 0:
+
+        if not self._velocity_filter_initd:
+            self._filtered_velocity_port = self._velocity_port
+            self._filtered_velocity_stbd = self._velocity_stbd
+            self._velocity_filter_initd = True
+        else:
+            self._filtered_velocity_port = (
+                    self._velocity_filter_alpha * self._filtered_velocity_port
+                    + (1.0 - self._velocity_filter_alpha) * self._velocity_port
+            )
+            self._filtered_velocity_stbd = (
+                    self._velocity_filter_alpha * self._filtered_velocity_stbd
+                    + (1.0 - self._velocity_filter_alpha) * self._velocity_stbd
+            )
+
+        if self._verbose and self._count % 20 == 0:
             self._log.info('tick: ' + Fore.MAGENTA 
                     + 'delta port={}, stbd={}, vel_port={:.1f}, vel_stbd={:.1f}'.format(
                         _delta_port, _delta_stbd, self._velocity_port, self._velocity_stbd))
         
         # motor drive
         if self._closed_loop:
-            _norm_vel_port          = self._velocity_port / self._MAX_VELOCITY_MMS
-            _norm_vel_stbd          = self._velocity_stbd / self._MAX_VELOCITY_MMS
+#           _norm_vel_port = self._velocity_port / self._MAX_VELOCITY_MMS
+#           _norm_vel_stbd = self._velocity_stbd / self._MAX_VELOCITY_MMS
+            _norm_vel_port = self._filtered_velocity_port / self._MAX_VELOCITY_MMS
+            _norm_vel_stbd = self._filtered_velocity_stbd / self._MAX_VELOCITY_MMS
+
             self._pid_port.setpoint = v_port
             self._pid_stbd.setpoint = v_stbd
             ff_port  = self._kff * v_port
@@ -416,11 +440,21 @@ class MotorController(Component):
             pwr_port = ff_port + pid_port
             pwr_stbd = ff_stbd + pid_stbd
             
+            # output conditioning ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
             # motor power clamping
-            if pwr_port >  1.0: pwr_port =  1.0
+            if pwr_port > 1.0: pwr_port =  1.0
             elif pwr_port < -1.0: pwr_port = -1.0
-            if pwr_stbd >  1.0: pwr_stbd =  1.0
+            if pwr_stbd > 1.0: pwr_stbd =  1.0
             elif pwr_stbd < -1.0: pwr_stbd = -1.0
+
+            # suppress tiny ineffective commands
+            pwr_port = self._apply_deadzone(pwr_port)
+            pwr_stbd = self._apply_deadzone(pwr_stbd)
+
+            # compensate motor deadband
+            pwr_port = self._apply_deadband_compensation(pwr_port)
+            pwr_stbd = self._apply_deadband_compensation(pwr_stbd)
 
             # scale power
             pwr_port *= self._power_scaler
@@ -434,7 +468,7 @@ class MotorController(Component):
         self._motor_stbd.set_power(pwr_stbd)
 
         # odometry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        if self._verbose:
+        if self._verbose and self._count % 20 == 0:
             self._log.info('port: {:.1f}mm/s {:.1f}mm | stbd: {:.1f}mm/s {:.1f}mm; '.format(
                     self._velocity_port, self._motor_port.get_distance_mm(), 
                     self._velocity_stbd, self._motor_stbd.get_distance_mm()) 
@@ -471,6 +505,24 @@ class MotorController(Component):
             else:
                 asyncio.create_task(self._callback()) # asynchronous
 #               self._callback() # synchronous
+
+    def _apply_deadzone(self, power):
+        '''
+        Suppress insignificant motor commands.
+        '''
+        if abs(power) < self._minimum_power:
+            return 0.0
+        return power
+
+    def _apply_deadband_compensation(self, power):
+        '''
+        Compensate for motor breakaway deadband.
+        '''
+        if power > 0.0:
+            return self._deadband_accel + power * (1.0 - self._deadband_accel)
+        elif power < 0.0:
+            return -self._deadband_decel + power * (1.0 - self._deadband_decel)
+        return 0.0
 
     async def _poll_loop(self):
         '''

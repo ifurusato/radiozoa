@@ -57,7 +57,6 @@ class ComponentRegistry:
         '''
         return len(self._dict) == 0
 
-
     @staticmethod
     def is_publisher(component):
         return any(cls.__name__ == "Publisher" for cls in component.__class__.mro())

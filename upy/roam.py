@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-10
-# modified: 2026-07-04
+# modified: 2026-07-18
 
 import itertools
 from math import sqrt
@@ -21,6 +21,7 @@ from pixel import Pixel
 from radiozoa_sensor import OUT_OF_RANGE
 
 class Roam(Behaviour):
+    NAME = 'roam'
     '''
     Subscribes to TOF_DISTANCES messages and uses the North (index 0) sensor
     reading to produce a forward/reverse velocity intent (vy only). Speed is
@@ -44,7 +45,7 @@ class Roam(Behaviour):
     _DEADBAND = 0.02
 
     def __init__(self, config=None, message_bus=None, motor_controller=None, visualiser=None, level=Level.INFO):
-        Behaviour.__init__(self, 'roam', message_bus, level)
+        Behaviour.__init__(self, Roam.NAME, message_bus, level)
         if config is None:
             raise TypeError('configuration argument is null.')
         _cfg = config['rros']['roam']
@@ -61,12 +62,28 @@ class Roam(Behaviour):
         self._bias       = 0.0
         self._last_bias  = 0.0
         self._intent_vector = (0.0, 0.0, 0.0)
-        if self._motor_controller is not None:
-            self._motor_controller.add_intent_vector(
-                'roam',
-                lambda: self._intent_vector if self.is_active else (0.0, 0.0, 0.0),
-                lambda: self._priority)
         self._log.info('ready.')
+
+    def enable(self):
+        if self.disabled:
+            if self._motor_controller:
+                self._motor_controller.add_intent_vector(
+                    Roam.NAME,
+                    lambda: self._intent_vector if self.is_active else (0.0, 0.0, 0.0),
+                    lambda: self._priority)
+            super().enable()
+            self._log.info('enabled.')
+        else:
+            self._log.warn('already enabled.')
+
+    def disable(self):
+        if self.enabled:
+            if self._motor_controller:
+                self._motor_controller.remove_intent_vector(Roam.NAME)
+            super().disable()
+            self._log.info('disabled.')
+        else:
+            self._log.warn('already disabled.')
 
     @property
     def visualise(self):

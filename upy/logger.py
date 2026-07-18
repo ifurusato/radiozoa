@@ -48,7 +48,7 @@ class Logger:
             )
             Logger._log_file = open(filename, "w")
 
-    def _get_timestamp(self):
+    def get_timestamp(self):
         while True:
             ticks1 = time.ticks_ms()
             t = time.localtime()
@@ -60,7 +60,7 @@ class Logger:
                 )
 
     def _get_time(self):
-        return self._get_timestamp()
+        return self.get_timestamp()
 
     def _strip_ansi(self, text):
         for code in self.__STRIP_CODES:

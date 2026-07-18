@@ -56,6 +56,7 @@ _config = None
 _rros   = None
 _relay_setup = None
 _pixel = Pixel(pin=48, pixel_count=1, color_order='GRB', brightness=0.5)
+_pixel.enable()
 
 try:
 

@@ -7,9 +7,10 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-07-05
-# modified: 2026-07-10
+# modified: 2026-07-17
 
 from colors import *
+from eyeball import Eyeball
 
 class ExplorerButton:
     '''
@@ -20,10 +21,11 @@ class ExplorerButton:
     _by_id = {}
     _by_mask = {}
 
-    def __init__(self, id, name, color, mask):
+    def __init__(self, id, name, color, eyeball, mask):
         self._id = id
         self._name  = name
         self._color = color
+        self._eyeball = eyeball
         self._mask  = mask
         ExplorerButton._registry.append(self)
         ExplorerButton._by_id[id] = self
@@ -40,6 +42,10 @@ class ExplorerButton:
     @property
     def color(self):
         return self._color
+
+    @property
+    def eyeball(self):
+        return self._eyeball
 
     @property
     def mask(self):
@@ -74,17 +80,17 @@ class ExplorerButton:
         return ExplorerButton._registry
 
 # ExplorerButton instances coupling names to hardware bitmasks
-BTN_3  = ExplorerButton( 0,  '3', COLOR_EMERALD,      1)
-BTN_2  = ExplorerButton( 1,  '2', COLOR_GREEN,        2)
-BTN_1  = ExplorerButton( 2,  '1', COLOR_PEAR,         4)
-BTN_DN = ExplorerButton( 3, 'DN', COLOR_AMBER,        8)
-BTN_LT = ExplorerButton( 4, 'LT', COLOR_RED,         16)
-BTN_RT = ExplorerButton( 5, 'RT', COLOR_YELLOW,      32)
-BTN_4  = ExplorerButton( 6,  '4', COLOR_ORANGE,      64)
-BTN_UP = ExplorerButton( 7, 'UP', COLOR_TANGERINE,  128)
-BTN_B  = ExplorerButton( 8,  'B', COLOR_VIOLET,     256)
-BTN_A  = ExplorerButton( 9,  'A', COLOR_BLUE,       512)
-BTN_Y  = ExplorerButton(10,  'Y', COLOR_SKY_BLUE,  1024)
-BTN_X  = ExplorerButton(11,  'X', COLOR_CYAN,      2048)
+BTN_3  = ExplorerButton( 0,  '3', COLOR_EMERALD,   Eyeball.GAMEPAD_3,     1)
+BTN_2  = ExplorerButton( 1,  '2', COLOR_GREEN,     Eyeball.GAMEPAD_2,     2)
+BTN_1  = ExplorerButton( 2,  '1', COLOR_PEAR,      Eyeball.GAMEPAD_1,     4)
+BTN_DN = ExplorerButton( 3, 'DN', COLOR_AMBER,     Eyeball.GAMEPAD_DN,    8)
+BTN_LT = ExplorerButton( 4, 'LT', COLOR_RED,       Eyeball.GAMEPAD_LT,   16)
+BTN_RT = ExplorerButton( 5, 'RT', COLOR_YELLOW,    Eyeball.GAMEPAD_RT,   32)
+BTN_4  = ExplorerButton( 6,  '4', COLOR_ORANGE,    Eyeball.GAMEPAD_4,    64)
+BTN_UP = ExplorerButton( 7, 'UP', COLOR_TANGERINE, Eyeball.GAMEPAD_UP,  128)
+BTN_B  = ExplorerButton( 8,  'B', COLOR_VIOLET,    Eyeball.GAMEPAD_B,   256)
+BTN_A  = ExplorerButton( 9,  'A', COLOR_BLUE,      Eyeball.GAMEPAD_A,   512)
+BTN_Y  = ExplorerButton(10,  'Y', COLOR_SKY_BLUE,  Eyeball.GAMEPAD_Y,  1024)
+BTN_X  = ExplorerButton(11,  'X', COLOR_CYAN,      Eyeball.GAMEPAD_X,  2048)
 
 #EOF

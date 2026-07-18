@@ -129,7 +129,8 @@ class Eyeballs(Component):
     def set_matrix(self, array, matrix, color=COLOR_ORANGE):
         for y in range(0, 5):
             for x in range(0, 5):
-                if array[x][y] == 1:
+                if array[x][4 - y] == 1:
+#               if array[x][y] == 1:
                     _color = color
                 else:
                     _color = COLOR_BLACK

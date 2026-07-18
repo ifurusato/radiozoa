@@ -7,14 +7,16 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-07-10
-# modified: 2026-07-13
+# modified: 2026-07-18
 
 import asyncio
 from colorama import Fore, Style
 
-from logger import Logger, Level
+from component import Component
 from event import TOUCH
 from colors import *
+from logger import Logger, Level
+from orientation import Orientation
 from behaviour import Behaviour
 from explorer_button import ExplorerButton
 
@@ -27,13 +29,19 @@ class RemoteControl(Behaviour):
     UP       = 3
     DOWN     = 4
     '''
-    Behaviour that responds to discrete gamepad messages to update the intent
-    vector (vy for forward/back, omega for rotation) of the MotorController.
+    Behaviour that responds to discrete gamepad messages to:
+
+    * enable/disable the Radiozoa sensor
+    * enable/disable the motor controller
+    * update the intent vector (vy for forward/back, omega for 
+      rotation) of the MotorController
+    * shut down RROS
 
     :param rros:    the RROS instance
     :param level:   the log level
     '''
     def __init__(self, rros, level=Level.INFO):
+        self._rros = rros
         self._motor_controller = rros.motor_controller
         self._pixel = rros.pixel
         Behaviour.__init__(
@@ -45,43 +53,39 @@ class RemoteControl(Behaviour):
                 level=level,
                 _init_base=True)
         _cfg = rros.config['rros']['remote_control']
+        self.add_event(TOUCH)
+        # handlers for Explorer buttons
+        self._button_handlers = {
+            0:  self._handle_button_3,   # shut down RROS
+            1:  self._handle_button_2,   # enable/disable motor controller
+            2:  self._handle_button_1,   # enable/disable radiozoa
+            3:  self._handle_button_dn,  # slow down
+            4:  self._handle_button_lt,  # rotate left
+            5:  self._handle_button_rt,  # rotate right
+            6:  self._handle_button_4,   # zero motors
+            7:  self._handle_button_up,  # speed up
+            8:  self._handle_button_b,   #
+            9:  self._handle_button_a,   #
+            10: self._handle_button_y,   #
+            11: self._handle_button_x    #
+        }
+        self._led_task = None
+        # intent vector ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._vx    = 0.0
         self._vy    = 0.0
         self._omega = 0.0
         self._intent_vector = (self._vx, self._vy, self._omega)
-        self.add_event(TOUCH)
-        # only pay attention to UP, DN, LT, RT and 4.
-        self._button_handlers = {
-            0: self._handle_button_3,
-            1: self._handle_button_2,
-            2: self._handle_button_1,
-            3: self._handle_button_dn,
-            4: self._handle_button_lt,
-            5: self._handle_button_rt,
-            6: self._handle_button_4,
-            7: self._handle_button_up,
-            8: self._handle_button_b,
-            9: self._handle_button_a,
-            10: self._handle_button_y,
-            11: self._handle_button_x
-        }
-        self._led_task = None
-        # components
-        if self._motor_controller:
-            self._motor_controller.add_intent_vector(
-                RemoteControl.NAME,
-                lambda: self._intent_vector,
-                lambda: self.PRIORITY
-            )
+        self._priority = self.PRIORITY
+        # components ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         _registry = Component.get_registry()
         self._roam = _registry.get('beh:roam')
         self._eyeballs = _registry.get('eyeballs')
         self._tof_publisher = _registry.get('pub:tof-pub')
         self._log.info('ready.')
 
-    def _update_vector(self):
+    def _update_vector(self, name):
         self._intent_vector = (self._vx, self._vy, self._omega)
-        self._log.info('intent updated: {}'.format(self._intent_vector))
+        self._log.info('intent updated by {}: '.format(name) + Fore.GREEN + '{}'.format(self._intent_vector))
 
     async def process_message(self, message):
         '''
@@ -109,7 +113,7 @@ class RemoteControl(Behaviour):
             if handler():
                 if self._led_task:
                     self._led_task.cancel()
-                self._led_task = asyncio.create_task(self._flash_led(color=button.color, 1000))
+                self._led_task = asyncio.create_task(self._flash_led(color=button.color, eyeball=button.eyeball, duration_ms=1000))
         else:
             self._log.debug('unrecognised button ID: {}'.format(button.id))
 
@@ -123,7 +127,6 @@ class RemoteControl(Behaviour):
         self._log.info('button 1: toggle radiozoa')
         if self._led_task is not None:
             self._led_task.cancel()
-        self._led_task = asyncio.create_task(self._flash_led(COLOR_PEAR, 2000))
         _visualiser = self._rros.visualiser
         _enabled = _visualiser.enabled
         if _visualiser:
@@ -162,8 +165,7 @@ class RemoteControl(Behaviour):
                 self._tof_publisher.enable()
         else:
             self._log.warn('no tof publisher available.')
-FIXME
-        return False or maybe return color, eyeballs
+        return True
 
     def _handle_button_2(self):
         self._log.info('button 2: toggle motor controller.')
@@ -177,39 +179,38 @@ FIXME
     def _handle_button_3(self):
         self._log.info('button 3: close rros.')
         self._rros.close()
-        return False
+        return True
 
     def _handle_button_4(self):
         self._log.info('button 4: zero intent vector')
         self._vx = 0.0
         self._vy = 0.0
         self._omega = 0.0
-        self._update_vector()
+        self._update_vector('zero')
         return True
 
     def _handle_button_up(self):
         self._log.info('button UP')
         self._vy = min(1.0, self._vy + self.STEP)
-        self._update_vector()
-        self._led_task = asyncio.create_task(self._flash_led(color=button.color, 1000))
+        self._update_vector('up')
         return True
 
     def _handle_button_dn(self):
         self._log.info('button DN')
         self._vy = max(-1.0, self._vy - self.STEP)
-        self._update_vector()
+        self._update_vector('down')
         return True
 
     def _handle_button_lt(self):
         self._log.info('button LT')
         self._omega = max(-1.0, self._omega - self.STEP)
-        self._update_vector()
+        self._update_vector('left')
         return True
 
     def _handle_button_rt(self):
         self._log.info('button RT')
         self._omega = min(1.0, self._omega + self.STEP)
-        self._update_vector()
+        self._update_vector('right')
         return True
 
     def _handle_button_a(self):
@@ -218,6 +219,8 @@ FIXME
 
     def _handle_button_b(self):
         self._log.info('button B')
+        self._vy = 0.8
+        self._update_vector('up=0.8')
         return True
 
     def _handle_button_x(self):
@@ -228,13 +231,27 @@ FIXME
         self._log.info('button Y')
         return True
 
+    def enable(self):
+        if self.disabled:
+            if self._motor_controller:
+                self._motor_controller.add_intent_vector(
+                    RemoteControl.NAME,
+                    lambda: self._intent_vector if self.is_active else (0.0, 0.0, 0.0),
+                    lambda: self._priority)
+            super().enable()
+            self._log.info('enabled.')
+        else:
+            self._log.warn('already enabled.')
+
     def disable(self):
         if self.enabled:
+            if self._motor_controller:
+                self._motor_controller.remove_intent_vector(RemoteControl.NAME)
             self.clear_events()
             if self._led_task:
                 self._led_task.cancel()
-            self._log.debug('disabled.')
             super().disable()
+            self._log.info('disabled.')
         else:
             self._log.warn('already disabled.')
 
@@ -254,28 +271,21 @@ FIXME
         if self._pixel:
             self._pixel.show_color(color)
 
-    async def _flash_led(self, color=None, eyeballs=-1, duration_ms=1000):
+    async def _flash_led(self, color=None, eyeball=None, duration_ms=1000):
         '''
-        Asynchronously set the color of the pixel for a specified
-        period of time, then return to black.
+        Asynchronously set the color of the pixel and the eyeball display
+        for a specified period of time, then return to black.
         '''
         try:
             self._show_color(color)
-            if self._eyeballs:
-                if eyeballs == RemoteControl.PORT:
-                    self._eyeballs.look_port()
-                elif eyeballs == RemoteControl.STBD:
-                    self._eyeballs.look_stbd()
-                elif eyeballs == RemoteControl.UP:
-                    self._eyeballs.look_up()
-                elif eyeballs == RemoteControl.DOWN:
-                    self._eyeballs.look_down()
+            if self._eyeballs and eyeball:
+                self._eyeballs.show_eyeball(Orientation.ALL, eyeball)
             await asyncio.sleep_ms(duration_ms)
         except asyncio.CancelledError:
             pass
         finally:
             self._show_color(COLOR_BLACK)
-            if self._eyeballs and eyeballs > 0:
-                self._eyeballs.off() # or normal()
+            if self._eyeballs and eyeball:
+                self._eyeballs.off()
 
 #EOF
