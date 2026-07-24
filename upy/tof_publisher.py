@@ -95,7 +95,7 @@ class ToFPublisher(Publisher):
             try:
                 _distances = await self._sensor.get_distances_async()
                 if self._verbose:
-                    self._log.info("distances: {}".format(self._formatter(_distances)))
+                    self._log.info("dist: {}".format(self._formatter(_distances)))
                 _message = self._message_factory.create_message(TOF_DISTANCES, _distances)
                 self.publish(_message)
             except Exception as e:

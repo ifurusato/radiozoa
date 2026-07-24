@@ -67,12 +67,13 @@ class RadiozoaConfig(Component):
         '''
         for d in config['rros']['devices']:
             Device(
-                index=d['index'],
-                impl=d.get('impl'),
-                label=d['label'],
-                address=d['address'],
-                xshut=d['xshut'],
-                pixel=d['pixel']
+                index    = d['index'],
+                impl     = d.get('impl'),
+                label    = d['label'],
+                address  = d['address'],
+                xshut    = d['xshut'],
+                pixel_8  = d['pixel_8'],
+                pixel_24 = d['pixel_24']
             )
 
     @property
@@ -140,10 +141,11 @@ class RadiozoaConfig(Component):
         _scan_delay_ms = 750
         _count = 0
         devices = [d for d in Device.all() if d and d.impl is not None]
-        devices.sort(key=lambda d: d.pixel)
+        devices.sort(key=lambda d: d.index)
         for device in devices:
+            _pixel = device.pixel_8 if self._visualiser.pixel_count < 24 else device.pixel_24
             if self._visualiser:
-                self._visualiser.set_color(device.pixel, COLOR_TURQUOISE)
+                self._visualiser.set_color(_pixel, COLOR_TURQUOISE)
             self._log.info('configuring sensor {0} at XSHUT pin {1}…'.format(device.label, device.xshut))
             device.set_xshut(True)
             found = False
@@ -159,27 +161,28 @@ class RadiozoaConfig(Component):
             if not found:
                 self._log.warn('sensor {0} did not appear at 0x29.'.format(device.label))
                 if self._visualiser:
-                    self._visualiser.set_color(device.pixel, COLOR_RED)
+                    self._visualiser.set_color(_pixel, COLOR_RED)
                 continue
             try:
                 self._set_i2c_address(device, device.i2c_address)
                 device.init_driver(self._i2c)
                 self._log.info('set address for sensor {0} to 0x{1:02X}.'.format(device.label, device.i2c_address))
                 if self._visualiser:
-                    self._visualiser.set_color(device.pixel, COLOR_GREEN)
+                    self._visualiser.set_color(_pixel, COLOR_GREEN)
                 _count += 1
             except Exception as e:
                 self._log.error('{0} raised setting address for sensor {1}: {2}'.format(type(e), device.label, e))
                 sys.print_exception(e)
                 if self._visualiser:
-                    self._visualiser.set_color(device.pixel, COLOR_RED)
+                    self._visualiser.set_color(_pixel, COLOR_RED)
             time.sleep_ms(_device_delay_ms)
         if _count == 8:
             if self._visualiser:
                 for green in range(255, -1, -5):
                     color = (0, green, 0)
                     for device in devices:
-                        self._visualiser.set_color(device.pixel, color)
+                        _pixel = device.pixel_8 if self._visualiser.pixel_count < 24 else device.pixel_24
+                        self._visualiser.set_color(_pixel, color)
             self._configured = True
         else:
             self._configured = False

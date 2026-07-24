@@ -392,6 +392,7 @@ class Relay(Component):
 
         Returns a flag indicating whether this device is enabled or disabled.
         '''
+        lowest = -1
         # scan backwards to find the first enabled inbound neighbor
         for i in range(self._index - 1, -1, -1):
             device = self._device_list[i]
@@ -401,7 +402,14 @@ class Relay(Component):
                 self._inbound_mac_bytes = self.mac_to_bytes(self._inbound_mac_str)
 #               self._log.debug("inbound name: '{}'; mac='{}'".format(self._inbound_name, self._inbound_mac_str))
                 self._add_neighbor_peer(INBOUND, self._inbound_mac_bytes, self._inbound_mac_str)
+                self._log.info(Fore.GREEN + "🤡 [{}] enabled inbound device index: {}".format(i, device.get('name')))
+                lowest = i
                 break
+            else:
+                self._log.info(Fore.BLUE + "🤖 [{}] disabled inbound device index: {}".format(i, device.get('name')))
+
+        print('\n')
+        highest = -1
         # scan forwards to find the first enabled outbound neighbor
         for i in range(self._index + 1, self._total_devices):
             device = self._device_list[i]
@@ -411,21 +419,42 @@ class Relay(Component):
                 self._outbound_mac_bytes = self.mac_to_bytes(self._outbound_mac_str)
 #               self._log.debug("outbound name: '{}'; mac='{}'".format(self._outbound_name, self._outbound_mac_str))
                 self._add_neighbor_peer(OUTBOUND, self._outbound_mac_bytes, self._outbound_mac_str)
+                self._log.info(Fore.GREEN + "😛 [{}] enabled outbound device index: {}".format(i, device.get('name')))
+                highest = i
                 break
+            else:
+                self._log.info(Fore.BLUE + "🤬 [{}] disabled outbound device index: {}".format(i, device.get('name')))
+
         else:
+            self._log.info(Fore.BLUE + "💙 WE ASSIGN THIS HERE AS ENDPOINT.")
             self._is_endpoint = True
-        # determine role label for console output
+
+        print('\n')
+
+        self._log.info(Fore.BLUE + "💙 DID WE ALREADY KNOW THIS WAS THE ENDPOINT? {}".format(self._is_endpoint))
+
+        # determine role and role label for console output
         _enabled = self._device_list[self._index].get('enabled');
         if not _enabled:
             role_label = Fore.RED + "DISABLED"
             # disable device if configuration flag is False
-        elif self._index == 0:
+        elif self._index == lowest or lowest == -1:
+            # then this node is the initiator
+            self._log.info(Fore.MAGENTA + "💙 THIS device is INITIATOR index: {}".format(self._index))
             role_label = Fore.GREEN + "INITIATOR"
             self._is_initiator = True
-        elif self._is_endpoint:
+        elif self._index == highest or highest == -1:
+            self._log.info(Fore.YELLOW + "💙 THIS device is ENDPOINT index: {}".format(self._index))
+            if not self._is_endpoint:
+                raise Exception('according to configuration, this node should be the endpoint.')
             role_label = Fore.GREEN + "ENDPOINT"
         else:
+            self._log.info(Fore.BLUE + "💙 LOWEST device index: {}".format(lowest))
+            self._log.info(Fore.BLUE + "💙 THIS device index: {}".format(self._index))
+            self._log.info(Fore.BLUE + "💙 HIGHEST device index: {}".format(highest))
             role_label = Fore.GREEN + "RELAY NODE"
+
+
         self._log.info("topology routing resolved:")
         self._log.info("  ├─ Role:       {}".format(role_label))
         self._log.info("  ├─ Upstream:   {}{}".format(Fore.GREEN, self._inbound_name))

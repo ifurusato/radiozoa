@@ -7,7 +7,7 @@
 #
 # author:  Murray Altheim
 # created:  2026-01-27
-# modified: 2026-07-03
+# modified: 2026-07-19
 
 class Device:
     _registry = []
@@ -32,16 +32,17 @@ class Device:
 
           d = Device.by_index(3)
     '''
-    def __init__(self, index, impl, label, address, xshut, pixel):
-        self._index = index
-        self._impl  = impl
-        self._label = label
-        self._address = address
-        self._xshut = xshut
-        self._pixel = pixel
+    def __init__(self, index, impl, label, address, xshut, pixel_8, pixel_24):
+        self._index    = index
+        self._impl     = impl
+        self._label    = label
+        self._address  = address
+        self._xshut    = xshut
+        self._pixel_8  = pixel_8
+        self._pixel_24 = pixel_24
         self._driver = None
 
-        # Instantiate the pin even if impl is None to maintain structural symmetry
+        # instantiate the pin even if impl is None to maintain structural symmetry
         from machine import Pin
         self._pin = Pin(xshut, Pin.OUT)
 
@@ -64,8 +65,12 @@ class Device:
         return self._address
 
     @property
-    def pixel(self):
-        return self._pixel
+    def pixel_8(self):
+        return self._pixel_8
+
+    @property
+    def pixel_24(self):
+        return self._pixel_24
 
     @property
     def xshut(self):
@@ -103,8 +108,8 @@ class Device:
         return self._index
 
     def __repr__(self):
-        return "Device({}, {}, 0x{:02X}, xshut={}, pixel={})".format(
-            self._index, self._label, self.i2c_address, self._xshut, self._pixel
+        return "Device({}, {}, 0x{:02X}, xshut={}, pixel_8={}, pixel_24={})".format(
+            self._index, self._label, self.i2c_address, self._xshut, self._pixel_8, self._pixel_24
         )
 
     def __eq__(self, other):

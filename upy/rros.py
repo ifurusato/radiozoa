@@ -18,6 +18,7 @@ from colorama import Fore, Style
 
 from colors import *
 from pixel import Pixel
+from ring import Ring
 from eyeball import Eyeball
 from eyeballs import Eyeballs
 from orientation import Orientation
@@ -62,6 +63,7 @@ class RROS(Component):
         self._drive_enabled    = self._config['rros']['drive']['enabled']
         self._eyeballs_enabled = self._config['rros']['eyeballs']['enabled']
         self._motor_controller_enabled = self._config['rros']['motor_controller']['enabled']
+        self._motor_controller_enabled_on_start = self._config['rros']['motor_controller']['enabled_on_start']
         self._remote_control_enabled   = self._config['rros']['remote_control']['enabled']
         self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}; drive enabled? {}'.format(
             self._radiozoa_enabled, self._roam_enabled, self._drive_enabled) + Style.RESET_ALL)
@@ -77,7 +79,7 @@ class RROS(Component):
         if ring:
             self._ring  = ring
         else:
-            self._ring  = Pixel(pin=21, pixel_count=24, color_order='GRB', brightness=0.1)
+            self._ring  = Ring(self._config)
         if not self._ring.enabled:
             self._log.info('enabling ring…')
             self._ring.enable()
@@ -162,7 +164,7 @@ class RROS(Component):
 
         if self._radiozoa_enabled:
             self._log.info('creating radiozoa behaviour…')
-            self._radiozoa = Radiozoa(self._message_bus, self._motor_ctrl, level=self._level)
+            self._radiozoa = Radiozoa(config=self._config, message_bus=self._message_bus, motor_controller=self._motor_ctrl, level=self._level)
 
         if self._roam_enabled:
             from roam import Roam
@@ -240,7 +242,8 @@ class RROS(Component):
             self._roam.enable()
         if self._drive_enabled:
             self._drive.enable() # after delay, drive will enable motor controller
-        self._motor_ctrl.enable()
+        if self._motor_controller_enabled_on_start:
+            self._motor_ctrl.enable()
         self._pixel.set_color(color=COLOR_DEEP_CYAN)
         if self._eyeballs:
             self._eyeballs.normal()

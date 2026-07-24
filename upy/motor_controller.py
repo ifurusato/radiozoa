@@ -10,6 +10,7 @@
 # modified: 2026-07-18
 
 import asyncio
+import time
 import itertools
 from colorama import Fore, Style
 
@@ -18,10 +19,14 @@ from component import Component
 from orientation import Orientation
 from pixel import Pixel
 from motor import Motor
+from util import Util
 from pid import PID
 
 class MotorController(Component):
     NAME = 'motor-ctrl'
+    DELTA_COAST = 0.01
+    DELTA_BRAKE = 0.03
+    DELTA_STOP  = 0.07
     '''
     Owns the two drive motors (port and starboard) and their PID controllers.
     Blends registered intent vectors from Behaviours by priority weighting,
@@ -62,6 +67,9 @@ class MotorController(Component):
         _cfg = config['rros']['motor_controller']
         self._visualiser     = visualiser
         self._visualise      = _cfg['visualise']
+        if self._visualiser.pixel_count < 24:
+            # we require a 24 pixel ring
+            self._visualise  = False
         self._deadband       = config['rros']['analog_control']['deadband']
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._verbose        = _cfg['verbose']
@@ -88,7 +96,7 @@ class MotorController(Component):
         self._pin_enc2b      = _cfg['pin_enc2B']
         self._log.info('motor encoders: enc1A={}; enc1B={}; enc2A={}; enc2B={}'.format(
                 self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b))
-        self._run_task = None
+        self._poll_task = None
         # motors ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._motor_port = Motor(
                 Orientation.PORT,
@@ -114,7 +122,11 @@ class MotorController(Component):
         self._callback       = None
         self._condition      = True # or a lambda function
         self._one_shot       = False
+        self._stopping_ratio = 1.0
+        self._stopping_delta = 1.0 # how quickly does it coast, brake or stop?
         self._stopping       = False
+        self._stopped        = False
+        self._stop_task      = None
         # feed-forward gain ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._kff            = _pid_cfg['kff']     # 0.6, was 0.175
         # PID setpoints in mm/s ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -161,11 +173,10 @@ class MotorController(Component):
         # closed loop mode from config ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._counter        = itertools.count()
         self._closed_loop    = _cfg['closed_loop']
-        self._stop           = False
         self._log.info('{} closed-loop mode.'.format('enabled' if self._closed_loop else 'disabled'))
         self._log.info('ready.')
 
-    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    # properties ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     @property
     def visualise(self):
@@ -194,6 +205,25 @@ class MotorController(Component):
     @lateral_gain.setter
     def lateral_gain(self, value):
         self._lateral_gain = value
+
+    def stopping(self):
+        return self._stopping
+
+    @property
+    def stopped(self):
+        return self._stopped
+
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def go(self):
+        '''
+        Resets the stopping and stopped flags to permit movement.
+        '''
+        if self._stopping:
+            if self._stop_task:
+                self._stop_task.cancel()
+            self._stopping = False
+        self._stopped = False
 
     def is_dip_enabled(self):
         if self._dip_switch:
@@ -253,9 +283,7 @@ class MotorController(Component):
         non-contributing behaviours do not dilute the result.
         Returns a (vx, vy, omega) tuple.
 
-        Returns zeroes if the stopping flag is True. If it would return
-        zeroes, sets the stopping flag to False. This keeps the robot
-        stopped until all intent vectors stop trying to move the robot.
+        Returns zeroes if the stopping flag is True.
         '''
         if not self._intent_vectors:
             return (0.0, 0.0, 0.0)
@@ -274,10 +302,7 @@ class MotorController(Component):
             total_p += p
         if total_p == 0.0:
             if self._stopping:
-                self.reset_odometry(Orientation.ALL)
-                self._stopping = False
-            return (0.0, 0.0, 0.0)
-        elif self._stopping:
+                self._reset()
             return (0.0, 0.0, 0.0)
 #       self._log.debug("vector: '{}', '{}', '{}'".format(vx / total_p, vy / total_p, omega / total_p))
         return (vx / total_p, vy / total_p, omega / total_p)
@@ -345,12 +370,11 @@ class MotorController(Component):
         else:
             raise ValueError('unsupported orientation: {}'.format(orientation.name))
 
-    def reset_odometry(self, orientation):
+    def _reset_odometry(self, orientation):
         '''
         Resets the odometry for the specified motor(s).
         Use Orientation.PORT, Orientation.STBD, or Orientation.ALL.
         '''
-        self._stopping = False
         if orientation is Orientation.PORT or orientation is Orientation.ALL:
             self._motor_port.reset_odometry()
             self._last_steps_port = 0
@@ -456,6 +480,20 @@ class MotorController(Component):
             pwr_port = self._apply_deadband_compensation(pwr_port)
             pwr_stbd = self._apply_deadband_compensation(pwr_stbd)
 
+            if self._stopping:
+                # if stopping, gradually suppress output
+                pwr_port = pwr_port * self._stopping_ratio
+                pwr_stbd = pwr_stbd * self._stopping_ratio
+                if ( ( _delta_port == 0 and _delta_stbd == 0 )
+                            or self._stopping_ratio < 0.0
+                            or Util.is_close(self._stopping_ratio, 0.0, abs_tol=0.01)
+                        ):
+                    self._stopping = False
+                    self._stopped  = True
+                else:
+                    # otherwise reduce ratio
+                    self._stopping_ratio -= self._stopping_delta
+
             # scale power
             pwr_port *= self._power_scaler
             pwr_stbd *= self._power_scaler
@@ -534,79 +572,151 @@ class MotorController(Component):
             self._log.warn('poll loop called while disabled.')
         elif self.suppressed:
             self._log.warn('poll loop called while suppressed.')
-        elif self._stop:
-            self._log.warn('poll loop called while stopped.')
         elif not self.is_dip_enabled():
             self._log.warn('poll loop called with DIP switch 1 disabled.')
         elif self._motor_port.disabled or self._motor_stbd.disabled:
             self._log.warn('poll loop called with motor(s) disabled.')
         else:
             self._log.info(Fore.GREEN + 'starting motor controller loop…')
-        while not self._stop and self.is_dip_enabled():
-            if self.enabled and not self.suppressed:
+        while ( self.enabled 
+                and self.is_dip_enabled() 
+                and not self.suppressed ):
+            if not self._stopped:
                 self._tick()
             await asyncio.sleep_ms(self._period_ms)
 
     # motor commands ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-
-    def stop(self):
-        self._motor_port.set_power(0)
-        self._motor_stbd.set_power(0)
-        self._log.info('stopped.')
-
-    def brake(self):
-        '''
-        Applies active braking to both motors and resets PID and slew state.
-        '''
-        if self.enabled:
-            self._stopping = True
-            self._motor_port.brake()
-            self._motor_stbd.brake()
-            self._pid_port.reset()
-            self._pid_stbd.reset()
-            self._last_vy    = 0.0
-            self._last_omega = 0.0
-
-    def coast(self):
-        '''
-        Coasts both motors to a stop.
-        '''
-        if self.enabled:
-            self._stopping = True
-            self._motor_port.coast()
-            self._motor_stbd.coast()
 
     def enable(self):
         if not self.enabled:
             super().enable()
             self._motor_port.enable()
             self._motor_stbd.enable()
-            if self._run_task is None:
-                self._stop = False
-                self._run_task = asyncio.create_task(self._poll_loop())
-                self._log.debug('enabled.')
+            self._stopping = False
+            self._stopped  = False
+            if self._poll_task is None:
+                self._poll_task = asyncio.create_task(self._poll_loop())
+                self._log.info('poll task started.')
             else:
-                self._log.warn('run task already active.')
+                self._log.warn('poll task already active.')
+            self._log.info('enabled.')
         else:
             self._log.warn('already enabled.')
 
+    def coast(self):
+        if self.enabled:
+            if not self._stopping:
+                if self._stop_task:
+                    self._stop_task.cancel()
+                self._log.info('coast…')
+                self._stop_task = asyncio.create_task(self._stop(self.DELTA_COAST))
+        else:
+            self._log.warn('cannot coast: disabled.')
+
+    def brake(self):
+        if self.enabled:
+            if not self._stopping:
+                if self._stop_task:
+                    self._stop_task.cancel()
+                self._log.info('brake…')
+                self._stop_task = asyncio.create_task(self._stop(self.DELTA_BRAKE))
+        else:
+            self._log.warn('cannot brake:  disabled.')
+
+    def stop(self):
+        if self.enabled:
+            if not self._stopping:
+                if self._stop_task:
+                    self._stop_task.cancel()
+                self._log.info('stop…')
+                self._stop_task = asyncio.create_task(self._stop(self.DELTA_STOP))
+        else:
+            self._log.warn('cannot stop: disabled.')
+
+    def status(self):
+        port_vel = self.get_velocity(Orientation.PORT)
+        stbd_vel = self.get_velocity(Orientation.STBD)
+        self._log.info('status: enabled: {}; stopping ratio: {}; delta: {}; stopping: {}; stopped: {}; task? {}; '.format(
+                self.enabled,
+                self._stopping_ratio,
+                self._stopping_delta,
+                self._stopping,
+                self._stopped,   
+                self._stop_task is None) 
+                + Fore.MAGENTA
+                + 'port: {:2f}; stbd: {:2f}'.format(port_vel, stbd_vel)
+            )
+
+    async def _stop(self, delta=None, disable=False):
+        '''
+        Coasts, brakes or stops both motors. If disable is True, then disables
+        the motor controller (as the latter part of the disable() method).
+        '''
+#       self._log.debug('_stop.')
+        if delta is None:
+            raise ValueError('missing delta stopping value.')
+        elif self._stopping:
+            self._log.warn('already stopping.')
+        elif self._stopped:
+            self._log.warn('already stopped.')
+        else:
+            await self.__perform_stop(delta)
+            if disable:
+                self._disable()
+
+    async def __perform_stop(self, delta=None):
+        '''
+        Coast, brake or stop the motors depending on the supplied delta.
+        '''
+        start = time.ticks_ms()
+#       self._log.debug('performing stop, delta: {}'.format(delta))
+        self._stopping = True
+        self._stopping_delta = delta
+        while self._stopping and not self._stopped:
+#           self._log.debug('stopping ratio: {:.2f}'.format(self._stopping_ratio))
+            await asyncio.sleep_ms(50)
+        self._reset()
+        self._stopping = False
+        self._stopped  = True
+        elapsed = time.ticks_diff(time.ticks_ms(), start)
+        self._log.info('fully stopped: elapsed: {}ms'.format(elapsed))
+
+    def _reset(self):
+        self._pid_port.reset()
+        self._pid_stbd.reset()
+        self._last_vy    = 0.0
+        self._last_omega = 0.0
+        self._stopping_ratio = 1.0
+        self._stopping_delta = 1.0
+        self._reset_odometry(Orientation.ALL)
+
     def disable(self):
         if self.enabled:
-            super().disable()
-            if self._visualiser:
-                self._visualiser.off(self._pin_port_pix1)
-                self._visualiser.off(self._pin_port_pix2)
-                self._visualiser.off(self._pin_stbd_pix1)
-                self._visualiser.off(self._pin_stbd_pix2)
-            self.coast()
-            self._motor_port.disable()
-            self._motor_stbd.disable()
-            self._stop = True
-            if self._run_task:
-                self._run_task = None
+            if not self._stopping:
+                if self._stop_task:
+                    self._stop_task.cancel()
+                self._stop_task = asyncio.create_task(self._stop(delta=self.DELTA_COAST, disable=True))
+            else:
+                self._disable()
             self._log.debug('disabled.')
         else:
             self._log.warn('already disabled.')
+
+    def _disable(self):
+        '''
+        The second part of the disable function.
+        '''
+        if self._visualiser:
+            self._visualiser.off()
+        self._stopping = False
+        self._stopped  = True
+        self._motor_port.disable()
+        self._motor_stbd.disable()
+        super().disable()
+        if self._poll_task:
+            self._poll_task.cancel()
+            self._poll_task = None
+        self._log.info('disabled.')
 
     def close(self):
         if not self.closed:

@@ -83,6 +83,8 @@ try:
 
 except KeyboardInterrupt:
     log.info('interrupted.')
+    if _rros:
+        _rros.close()
 except Exception as e:
     log.error('{} raised: {}'.format(type(e), e))
     sys.print_exception(e)

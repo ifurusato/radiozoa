@@ -2,7 +2,7 @@
 
 rros:
     application:
-        log_to_file:        True
+        log_to_file:       False
 
     # behaviours ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     drive:
@@ -11,6 +11,7 @@ rros:
         pin_analog:           22
     radiozoa:
         enabled:           False
+        verbose:           False
         check_configured:   True
         force_configure:   False       # if True, force reconfiguration
     remote_control:
@@ -34,9 +35,13 @@ rros:
         verbose:           False
     eyeballs:
         enabled:            True
-
+    ring:
+        pin:                  21
+        pixel_count:           8
+        brightness:          0.1
     motor_controller:
-        enabled:            True
+        enabled:            True       # instantiated
+        enabled_on_start:  False       # enabled when started
         verbose:           False
         visualise:          True
         closed_loop:        True
@@ -69,49 +74,57 @@ rros:
         impl:          "VL53L1X"
         label:              "N0"       # red/grey
         address:            0x30
-        pixel:                12
+        pixel_24:             12
+        pixel_8:               4
         xshut:                33
       - index:                 1
         impl:          "VL53L1X"
         label:             "NE1"       # red/white
         address:            0x31
-        pixel:                15
+        pixel_24:             15
+        pixel_8:               5
         xshut:                 8
       - index:                 2
         impl:          "VL53L1X"
         label:              "E2"       # green/grey
         address:            0x32
-        pixel:                18
+        pixel_24:             18
+        pixel_8:               6
         xshut:                10
       - index:                 3
         impl:          "VL53L1X"
         label:             "SE3"       # green/white
         address:            0x33
-        pixel:                21
+        pixel_24:             21
+        pixel_8:               7
         xshut:                13
       - index:                 4
         impl:          "VL53L1X"
         label:              "S4"       # blue/grey
         address:            0x34
-        pixel:                 0
+        pixel_24:              0
+        pixel_8:               0
         xshut:                15
       - index:                 5
         impl:          "VL53L1X"
         label:             "SW5"       # blue/white
         address:            0x35
-        pixel:                 3
+        pixel_24:              3
+        pixel_8:               1
         xshut:                11
       - index:                 6
         impl:          "VL53L1X"
         label:              "W6"       # grey
         address:            0x36
-        pixel:                 6
+        pixel_24:              6
+        pixel_8:               2
         xshut:                 9
       - index:                 7
         impl:          "VL53L1X"
         label:             "NW7"       # white
         address:            0x37
-        pixel:                 9
+        pixel_24:              9
+        pixel_8:               3
         xshut:                34
 
 #EOF

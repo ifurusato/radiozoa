@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2021-07-07
-# modified: 2024-08-27
+# modified: 2026-07-20
 
 import sys
 import time
@@ -24,7 +24,12 @@ class Util:
     def __new__(cls):
         raise TypeError("Util may not be instantiated.")
 
-    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+    @staticmethod
+    def is_close(a, b, rel_tol=1e-9, abs_tol=0.0):
+        '''
+        Mimics math.is_close() from PEP 485.
+        '''
+        return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
     @staticmethod
     def is_true(value):

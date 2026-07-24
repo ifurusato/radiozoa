@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-06-05
+# modified: 2026-07-19
 
 from logger import Level
 from event import TOF_DISTANCES
@@ -47,6 +47,10 @@ class RingVisualiser(Subscriber):
         # clear ring on startup
         self._ring.off()
 
+    @property
+    def pixel_count(self):
+        return self._ring.pixel_count
+
     def disable(self):
         self._ring.off()
         super().disable()
@@ -64,19 +68,21 @@ class RingVisualiser(Subscriber):
             return
         distances = message.value
         for device in Device.all():
+            _pixel = device.pixel_8 if self.pixel_count < 24 else device.pixel_24
             distance = distances[device.index]
             if self._use_enumerated_colors:
                 raw_color = self._distance_to_enumerated_color(distance)
             else:
                 raw_color = self._distance_to_color(distance)
-            self.set_color(device.pixel, raw_color)
+            self.set_color(_pixel, raw_color)
             if self._brighten and self._brightness < 1.0:
                 self._brightness += self._brightness_step
                 if self._brightness == 1.0:
                     self._brighten = False
 
-    def off(self, pixel):
-        self._ring.set_color(pixel, (0, 0, 0))
+    def off(self):
+        for pixel in range(self.pixel_count - 1):
+            self._ring.set_color(pixel, (0, 0, 0))
 
     def set_color(self, pixel, color):
         if self.disabled:

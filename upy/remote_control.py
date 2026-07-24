@@ -62,7 +62,7 @@ class RemoteControl(Behaviour):
             3:  self._handle_button_dn,  # slow down
             4:  self._handle_button_lt,  # rotate left
             5:  self._handle_button_rt,  # rotate right
-            6:  self._handle_button_4,   # zero motors
+            6:  self._handle_button_4,   # equalise speed
             7:  self._handle_button_up,  # speed up
             8:  self._handle_button_b,   #
             9:  self._handle_button_a,   #
@@ -70,6 +70,7 @@ class RemoteControl(Behaviour):
             11: self._handle_button_x    #
         }
         self._led_task = None
+        self._reset_task = None
         # intent vector ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._vx    = 0.0
         self._vy    = 0.0
@@ -146,9 +147,8 @@ class RemoteControl(Behaviour):
                 self._eyeballs.normal();
 
         # disable the motor controller's visualiser
-        _motor_controller = self._rros.motor_controller
-        if _motor_controller:
-            _motor_controller.visualise = not _enabled
+        if self._motor_controller:
+            self._motor_controller.visualise = not _enabled
             self._log.info('button 1: motor controller visualiser {}.'.format('disabled' if _enabled else 'enabled'))
         else:
             self._log.warn('no motor controller available.')
@@ -168,12 +168,12 @@ class RemoteControl(Behaviour):
         return True
 
     def _handle_button_2(self):
-        self._log.info('button 2: toggle motor controller.')
-        _motor_controller = self._rros.motor_controller
-        if _motor_controller.enabled:
-            _motor_controller.disable()
+        if self._motor_controller.enabled:
+            self._log.info('button 2: disable motor controller.')
+            self._motor_controller.disable()
         else:
-            _motor_controller.enable()
+            self._log.info('button 2: enable motor controller.')
+            self._motor_controller.enable()
         return True
 
     def _handle_button_3(self):
@@ -191,45 +191,79 @@ class RemoteControl(Behaviour):
 
     def _handle_button_up(self):
         self._log.info('button UP')
+        if self._motor_controller.stopped or self._motor_controller.stopping:
+            self._motor_controller.go()
         self._vy = min(1.0, self._vy + self.STEP)
         self._update_vector('up')
         return True
 
     def _handle_button_dn(self):
         self._log.info('button DN')
+        if self._motor_controller.stopped or self._motor_controller.stopping:
+            self._motor_controller.go()
         self._vy = max(-1.0, self._vy - self.STEP)
         self._update_vector('down')
         return True
 
     def _handle_button_lt(self):
         self._log.info('button LT')
-        self._omega = max(-1.0, self._omega - self.STEP)
+        if self._motor_controller.stopped or self._motor_controller.stopping:
+            self._motor_controller.go()
+        self._omega = min(1.0, self._omega + self.STEP)
         self._update_vector('left')
         return True
 
     def _handle_button_rt(self):
         self._log.info('button RT')
-        self._omega = min(1.0, self._omega + self.STEP)
+        if self._motor_controller.stopped or self._motor_controller.stopping:
+            self._motor_controller.go()
+        self._omega = max(-1.0, self._omega - self.STEP)
         self._update_vector('right')
         return True
 
     def _handle_button_a(self):
-        self._log.info('button A')
+        self._log.info('button A: motor controller status')
+        self._motor_controller.status()
         return True
 
     def _handle_button_b(self):
-        self._log.info('button B')
-        self._vy = 0.8
-        self._update_vector('up=0.8')
+        self._log.info('button B: brake')
+        self._motor_controller.brake()
+        if self._reset_task:
+            self._reset_task.cancel()
+        self._reset_task = asyncio.create_task(self._reset_velocity(1000))
         return True
 
     def _handle_button_x(self):
-        self._log.info('button X')
+        self._log.info('button X: coast')
+#       self._info()
+        self._motor_controller.coast()
+        if self._reset_task:
+            self._reset_task.cancel()
+        self._reset_task = asyncio.create_task(self._reset_velocity(2000))
         return True
 
     def _handle_button_y(self):
-        self._log.info('button Y')
+        self._log.info('button Y: stop')
+        self._motor_controller.stop()
+        if self._reset_task:
+            self._reset_task.cancel()
+        self._reset_task = asyncio.create_task(self._reset_velocity(250))
         return True
+
+    async def _reset_velocity(self, delay_ms):
+        self._log.debug('reset velocity with delay: {}ms'.format(delay_ms))
+        await asyncio.sleep_ms(delay_ms)
+        self._vy = 0.0
+
+    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    def _info(self):
+        port_motor = self._motor_controller.get_motor(Orientation.PORT)
+        stbd_motor = self._motor_controller.get_motor(Orientation.STBD)
+        port_vel = self._motor_controller.get_velocity(Orientation.PORT)
+        stbd_vel = self._motor_controller.get_velocity(Orientation.STBD)
+        self._log.info('port velocity: {}mm/s; stbd: {}mm/s'.format(port_vel, stbd_vel))
 
     def enable(self):
         if self.disabled:

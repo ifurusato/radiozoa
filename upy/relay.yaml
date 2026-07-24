@@ -35,7 +35,7 @@ rros:
             - id:            "n1"
               name:          "Node 1 - TinyPICO Explorer"
               mac:           "24:a1:60:75:ba:84"
-              enabled:       True
+              enabled:       False
             - id:            "n2"
               name:          "Node 2 - TinyPICO green"
               mac:           "64:b7:08:90:5c:c4"
@@ -53,7 +53,7 @@ rros:
               name:          "Node 5 - Waveshare ESP32-S3 Zero"
               mac:           "24:ec:4a:26:8f:5c"
               device:        "zero"
-              enabled:       False
+              enabled:       True
             - id:            "n6"
               name:          "Node 6 - TinyPICO red"
               mac:           "98:cd:ac:d3:41:b8"
@@ -66,5 +66,4 @@ rros:
               name:          "Node 8 - Radiozoa WeAct ESP32-S3"
               mac:           "10:20:ba:08:b7:84"
               enabled:       True
-
 #EOF

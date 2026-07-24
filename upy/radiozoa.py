@@ -63,8 +63,16 @@ class Radiozoa(Behaviour):
     _PRIORITY_MIN = 0.3   # priority when no obstacles in range
     _PRIORITY_MAX = 1.0   # priority at closest obstacle threshold
 
-    def __init__(self, message_bus, motor_controller=None, level=Level.INFO):
-        Behaviour.__init__(self, Radiozoa.NAME, message_bus, level)
+    def __init__(self, config=None, message_bus=None, motor_controller=None, level=Level.INFO):
+        Behaviour.__init__(self,
+                name=Radiozoa.NAME, 
+                message_bus=message_bus,
+                suppressed=False,
+                enabled=False,
+                level=level)
+        self._config = config
+        _cfg = config['rros']['radiozoa']
+        self._verbose = _cfg['verbose']
         self._motor_controller = motor_controller
         self._priority = self._PRIORITY_MIN
         self.add_event(TOF_DISTANCES)
@@ -93,10 +101,14 @@ class Radiozoa(Behaviour):
             self._log.warn('already disabled.')
 
     async def process_message(self, message):
-        self._log.info('processing message: ' + Fore.GREEN + '{}'.format(message))
         distances = message.value
         vx, vy, omega = self._process(distances)
         self._intent_vector = (vx, vy, omega)
+        if self._verbose:
+            self._log.info('processing message: ' 
+                    + Fore.GREEN + '{}; '.format(message)
+                    + Fore.CYAN + 'to: '
+                    + Fore.WHITE + '{}'.format(self._intent_vector))
 
     def _process(self, distances):
         '''
