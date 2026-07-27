@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-07-18
+# modified: 2026-07-25
 
 import asyncio
 import time
@@ -225,6 +225,16 @@ class MotorController(Component):
             self._stopping = False
         self._stopped = False
 
+    def flatten_to_vy(self, vx, vy, omega):
+        '''
+        Calculates and returns a new intent vector (vx, vy, omega) where vx and
+        omega are eliminated and their contribution is re-blended into vy.
+        '''
+        omega_final = omega + self._lateral_gain * vx
+        equivalent_vy = vy + abs(omega_final)
+        equivalent_vy = max(-1.0, min(1.0, equivalent_vy))
+        return (0.0, equivalent_vy, 0.0)
+
     def is_dip_enabled(self):
         if self._dip_switch:
             return self._dip_switch.get_switch(1)
@@ -276,7 +286,7 @@ class MotorController(Component):
             del self._intent_vectors[name]
             self._log.info("removed intent vector: '{}'".format(name))
 
-    def _blend_intent_vectors(self):
+    def blend_intent_vectors(self):
         '''
         Priority-weighted blend of all registered intent vectors.
         Entries returning (0.0, 0.0, 0.0) are skipped so that inactive or
@@ -394,7 +404,7 @@ class MotorController(Component):
         If a callback has been set it is executed at the end of this method.
         If it is a one shot it is executed a single time.
         '''
-        vx, vy, omega = self._blend_intent_vectors()
+        vx, vy, omega = self.blend_intent_vectors()
 
         self._count = next(self._counter)
         if self._verbose and self._count % 20 == 0:
@@ -578,12 +588,16 @@ class MotorController(Component):
             self._log.warn('poll loop called with motor(s) disabled.')
         else:
             self._log.info(Fore.GREEN + 'starting motor controller loop…')
-        while ( self.enabled 
-                and self.is_dip_enabled() 
-                and not self.suppressed ):
-            if not self._stopped:
-                self._tick()
-            await asyncio.sleep_ms(self._period_ms)
+        try:
+            while ( self.enabled 
+                    and not self.suppressed 
+                    and self.is_dip_enabled() ):
+                if not self._stopped:
+                    self._tick()
+                await asyncio.sleep_ms(self._period_ms)
+        except Exception as e:
+            self._log.error('cannot continue: error in poll loop: {}'.format(e))
+            self.disable()
 
     # motor commands ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 

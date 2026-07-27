@@ -58,13 +58,19 @@ class RROS(Component):
             Component.__init__(self, _log, suppressed=False, enabled=False, level=self._level)
         else:
             Component.__init__(self, RROS.NAME, suppressed=False, enabled=False, level=self._level)
-        self._radiozoa_enabled = self._config['rros']['radiozoa']['enabled']
         self._roam_enabled     = self._config['rros']['roam']['enabled']
         self._drive_enabled    = self._config['rros']['drive']['enabled']
         self._eyeballs_enabled = self._config['rros']['eyeballs']['enabled']
         self._motor_controller_enabled = self._config['rros']['motor_controller']['enabled']
         self._motor_controller_enabled_on_start = self._config['rros']['motor_controller']['enabled_on_start']
         self._remote_control_enabled   = self._config['rros']['remote_control']['enabled']
+        # enable radiozoa if config is True and DIP switch 2 is set ON
+        self._dip_switch       = DipSwitch()
+        _radiozoa_enabled      = self._config['rros']['radiozoa']['enabled']
+        _radiozoa_dip_enabled  = self._dip_switch.get_switch(2)
+        if _radiozoa_enabled and not _radiozoa_dip_enabled:
+            self._log.warn('cannot enable radiozoa: DIP switch 2 is set OFF.')
+        self._radiozoa_enabled = _radiozoa_enabled and _radiozoa_dip_enabled
         self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}; drive enabled? {}'.format(
             self._radiozoa_enabled, self._roam_enabled, self._drive_enabled) + Style.RESET_ALL)
         self._closing = False
@@ -113,7 +119,6 @@ class RROS(Component):
         self._message_bus.add_callback(self._startup_callback)
         self._message_factory = MessageFactory(message_bus=self._message_bus, level=self._level)
         # objects ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._dip_switch     = DipSwitch()
         self.devices         = []
         self._sensor         = None
         self._visualiser     = None
@@ -307,6 +312,11 @@ class RROS(Component):
             self._eyeballs.clear()
             self._eyeballs.update()
         self._log.info('shutdown complete.')
+        for _ in range(7):
+            self._pixel.set_color(color=COLOR_EMERALD)
+            time.sleep_ms(100)
+            self._pixel.set_color(color=COLOR_BLACK)
+            time.sleep_ms(50)
         _timestamp = self._log.get_timestamp()
         self._log.close()
         # faked log message
@@ -330,7 +340,12 @@ class RROS(Component):
         self._log.info('closing message bus…')
         if self._message_bus:
             self._message_bus.close()
-        self._pixel.set_color(color=COLOR_DARK_GREEN)
+            self._message_bus = None
+#       for _ in range(7):
+#           self._pixel.set_color(color=COLOR_DEEP_FUCHSIA)
+#           time.sleep_ms(100)
+#           self._pixel.set_color(color=COLOR_BLACK)
+#           time.sleep_ms(50)
         self._log.info('message bus closed.')
 
     async def _close_open_components(self):

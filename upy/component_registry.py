@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2021-06-29
-# modified: 2026-07-12
+# modified: 2026-07-27
 
 from collections import OrderedDict
 from colorama import Fore, Style
@@ -107,6 +107,12 @@ class ComponentRegistry:
         Returns True if the name is found in the registry.
         '''
         return name in self._dict
+
+    def clear(self):
+        '''
+        Clear the registry dict.
+        '''
+        self._dict.clear()
 
     def remove(self, name):
         '''

@@ -41,7 +41,7 @@ class MessageBus(Component):
         self._subscribers = []
         self._callback    = None
         self._enabled     = False
-        self._log.info('ready.')
+        self._log.info('ready. ' + Fore.BLACK + '(uuid: {})'.format(self.uuid))
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
@@ -131,10 +131,13 @@ class MessageBus(Component):
         else:
             self._log.info('disabling…')
             self.clear_queue()
+            self._subscribers.clear()
+            self._callback = None
             super().disable()
 
     def close(self):
         self._closed = True
         self.disable()
+        MessageBus._instance = None
 
 #EOF

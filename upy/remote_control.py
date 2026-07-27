@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-07-10
-# modified: 2026-07-18
+# modified: 2026-07-25
 
 import asyncio
 from colorama import Fore, Style
@@ -15,19 +15,21 @@ from colorama import Fore, Style
 from component import Component
 from event import TOUCH
 from colors import *
+from eyeball import Eyeball
 from logger import Logger, Level
 from orientation import Orientation
 from behaviour import Behaviour
 from explorer_button import ExplorerButton
 
 class RemoteControl(Behaviour):
-    NAME     = 'remote'
-    PRIORITY = 0.6
-    STEP     = 0.1
-    PORT     = 1
-    STBD     = 2
-    UP       = 3
-    DOWN     = 4
+    NAME       = 'remote'
+    PRIORITY   = 0.6
+    VY_STEP    = 0.1
+    OMEGA_STEP = 0.05
+    PORT       = 1
+    STBD       = 2
+    UP         = 3
+    DOWN       = 4
     '''
     Behaviour that responds to discrete gamepad messages to:
 
@@ -171,29 +173,41 @@ class RemoteControl(Behaviour):
         if self._motor_controller.enabled:
             self._log.info('button 2: disable motor controller.')
             self._motor_controller.disable()
+            if self._led_task:
+                self._led_task.cancel()
+            self._led_task = asyncio.create_task(self._flash_led(color=COLOR_BROWN, eyeball=Eyeball.GAMEPAD_2, duration_ms=1000))
         else:
             self._log.info('button 2: enable motor controller.')
             self._motor_controller.enable()
-        return True
+            if self._led_task:
+                self._led_task.cancel()
+            self._led_task = asyncio.create_task(self._flash_led(color=COLOR_AMBER, eyeball=Eyeball.GAMEPAD_2, duration_ms=1000))
+        return False
 
     def _handle_button_3(self):
         self._log.info('button 3: close rros.')
+        self._motor_controller.brake()
+        self._motor_controller.disable()
         self._rros.close()
         return True
 
     def _handle_button_4(self):
-        self._log.info('button 4: zero intent vector')
-        self._vx = 0.0
-        self._vy = 0.0
-        self._omega = 0.0
-        self._update_vector('zero')
+        self._log.info('button 4: a. zero intent vector: ({:2f}, {:2f}, {:2f})'.format(self._vx, self._vy, self._omega))
+#       self._vx = 0.0
+#       self._vy = 0.0
+#       self._omega = 0.0
+#       self._update_vector('zero')
+        vx, vy, omega = self._motor_controller.blend_intent_vectors()
+        self._log.info('button 4: b. zero intent vector: ({:2f}, {:2f}, {:2f})'.format(vx, vy, omega))
+        self._vx, self._vy, self._omega = self._motor_controller.flatten_to_vy(vx, vy, omega)
+        self._update_vector('even')
         return True
 
     def _handle_button_up(self):
         self._log.info('button UP')
         if self._motor_controller.stopped or self._motor_controller.stopping:
             self._motor_controller.go()
-        self._vy = min(1.0, self._vy + self.STEP)
+        self._vy = min(1.0, self._vy + self.VY_STEP)
         self._update_vector('up')
         return True
 
@@ -201,7 +215,7 @@ class RemoteControl(Behaviour):
         self._log.info('button DN')
         if self._motor_controller.stopped or self._motor_controller.stopping:
             self._motor_controller.go()
-        self._vy = max(-1.0, self._vy - self.STEP)
+        self._vy = max(-1.0, self._vy - self.VY_STEP)
         self._update_vector('down')
         return True
 
@@ -209,7 +223,7 @@ class RemoteControl(Behaviour):
         self._log.info('button LT')
         if self._motor_controller.stopped or self._motor_controller.stopping:
             self._motor_controller.go()
-        self._omega = min(1.0, self._omega + self.STEP)
+        self._omega = min(1.0, self._omega + self.OMEGA_STEP)
         self._update_vector('left')
         return True
 
@@ -217,7 +231,7 @@ class RemoteControl(Behaviour):
         self._log.info('button RT')
         if self._motor_controller.stopped or self._motor_controller.stopping:
             self._motor_controller.go()
-        self._omega = max(-1.0, self._omega - self.STEP)
+        self._omega = max(-1.0, self._omega - self.OMEGA_STEP)
         self._update_vector('right')
         return True
 

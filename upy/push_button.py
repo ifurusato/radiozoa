@@ -1,31 +1,40 @@
+#!/micropython
+# -*- coding: utf-8 -*-
+#
+# Copyright 2020-2026 by Ichiro Furusato. All rights reserved. This file is part
+# of the Robot Operating System project, released under the MIT License. Please
+# see the LICENSE file included as part of this package.
+#
+# author:   Ichiro Furusato
+# created:  2026-06-20
+# modified: 2026-07-25
 
 import time
-from sensor import Sensor
 from machine import Pin
 from colorama import Fore, Style
 
 from logger import Logger, Level
-from orientation import Orientation
+from component import Component
 
-class PushButton(Sensor):
+class PushButton(Component):
 
-    def __init__(self, pin_number=None, callback=None):
+    def __init__(self, pin_number=None, callback=None, level=Level.INFO):
+        NAME = 'push-btn'
         '''
         A push button implementation that includes a debounce feature. The callback
         is used to indicate an event has occurred.
 
         There is an enable/disable flag to keep the button from false triggering.
-        The default is enabled.
+        The default is disabled, you must enable the button for the callback to
+        be triggered.
 
         Args:
             pin_number: the GPIO number of the Pin
             callback:   the callback to be executed when the button is triggered
         '''
-        # we made a bad assumption: not all sensors have an orientation so we pass any orientation
-        super().__init__(Orientation.PORT) 
+        Component.__init__(self, PushButton.NAME, suppressed=False, enabled=False, level=level)
         if pin_number is None:
             pin_number = 35 # default GPIO pin
-        self._log = Logger('pushbutton', level=Level.INFO)
         self._value    = False
         self._callback = callback
         self._ms_ago   = 500 # milliseconds debounce time
@@ -47,20 +56,23 @@ class PushButton(Sensor):
         '''
         Attach a callback function that is executed when the sensor is triggered.
         '''
-        if time.ticks_ms() > self._next_call:
-            self._next_call = time.ticks_ms() + self._ms_ago
-            if self.enabled:
-                self._log.info(Style.BRIGHT + 'debounce handler triggered.')
-                self._value = not self._value
-                if self._value:
-                    self._log.info(Style.BRIGHT + 'PUSHBUTTON EVENT: value={}'.format(self._value))
+        if self.enabled:
+            if time.ticks_ms() > self._next_call:
+                self._next_call = time.ticks_ms() + self._ms_ago
+                if self.enabled:
+                    self._log.info(Style.BRIGHT + 'debounce handler triggered.')
+                    self._value = not self._value
+                    if self._value:
+                        self._log.info(Style.BRIGHT + 'PUSHBUTTON EVENT: value={}'.format(self._value))
+                    else:
+                        self._log.info(Style.NORMAL + 'PUSHBUTTON EVENT: value={}'.format(self._value))
+                    self._call_callback(pin)
                 else:
-                    self._log.info(Style.NORMAL + 'PUSHBUTTON EVENT: value={}'.format(self._value))
-                self._call_callback(pin)
+                    self._log.warn('push button not enabled.')
             else:
-                self._log.warn('push button not enabled.')
+                self._log.info(Style.DIM + 'debounce handler triggered.')
         else:
-            self._log.info(Style.DIM + 'debounce handler triggered.')
+            self._log.warn('disabled.')
 
     @property
     def value(self):
@@ -69,3 +81,4 @@ class PushButton(Sensor):
         '''
         return self._value
 
+#EOF

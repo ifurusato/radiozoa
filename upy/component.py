@@ -7,21 +7,22 @@
 #
 # author:   Ichiro Furusato
 # created:  2021-06-29
-# modified: 2026-07-15
+# modified: 2026-07-27
 
 from logger import Logger, Level
 from component_registry import ComponentRegistry
 from uuid import UUID, uuid4
 
 class Component:
-    __registry = ComponentRegistry() # singleton
+    __registry = None # singleton
     '''
     A basic component providing enabled, suppressed and closed state flags.
     This is a simplification of the CPython version.
 
     All Components are automatically added to the ComponentRegistry, which is
     an alternative means of gaining access to them within the application, by
-    name as key.
+    name as key. Upon closing, close_registry() should be called to clear the
+    registry and destroy its instance.
 
     :param name:         either the component name, or a Logger instance
     :param suppressed:   initial suppressed state (default False)
@@ -42,9 +43,19 @@ class Component:
         self._uuid       = uuid4()
         self._suppressed = suppressed
         self._enabled    = enabled
-        if not Component.__registry.has(self._log.name): # properly handle multiple inheritance
-            Component.__registry.add(self)
+        registry = Component._registry()
+        if not registry.has(self._log.name):
+            registry.add(self)
         self._closed     = False
+
+    @staticmethod
+    def _registry():
+        '''
+        Create and/or return the singleton instance of the component registry.
+        '''
+        if Component.__registry is None:
+            Component.__registry = ComponentRegistry()
+        return Component.__registry
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
@@ -127,5 +138,15 @@ class Component:
             self._log.debug('closed.')
         else:
             self._log.warn('already closed.')
+
+    @staticmethod
+    def close_registry():
+        '''
+        To be called at application close, to clear and eliminate any
+        references to the component registry.
+        '''
+        if Component.__registry is not None:
+            Component.__registry.clear()
+            Component.__registry = None
 
 #EOF

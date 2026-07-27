@@ -12,9 +12,20 @@ rros:
         verbose:           False
     surveyor:
         verbose:           False
-    touch_publisher:
+    touch_pad_publisher:               # from RobotPad
+        threshold:         35000
+        poll_ms:              50
+        on_touch:           True
+        on_release:         True
+        enable_led:         True
+        led_duration_ms:     250
+        debounce_delay_ms:   333
+    touch_publisher:                   # from UM Explorer
         active:             True       # when False disable publishing
         verbose:            True
+        scl_pin:              22
+        sda_pin:              21
+        use_mpr121:        False       # if True, assume UM Explorer with touch chip
         poll_interval_ms:     50
         debounce_delay_ms:   333
     relay:
@@ -32,10 +43,17 @@ rros:
 #             device:        # optional: only necessary when device type cannot be inferred from machine identifier
 #             enabled:       # if False do not include this device in the relay chain
 
+#           - id:            "n1"
+#             name:          "Node 1 - TinyPICO Explorer"
+#             mac:           "24:a1:60:75:ba:84"
+#             enabled:       False
+
             - id:            "n1"
-              name:          "Node 1 - TinyPICO Explorer"
-              mac:           "24:a1:60:75:ba:84"
-              enabled:       False
+              name:          "Node 1 - ESP32-S3 Super Mini TouchPad"
+              mac:           "e0:72:a1:e8:b9:54"
+              device:        "super-mini"
+              enabled:       True
+
             - id:            "n2"
               name:          "Node 2 - TinyPICO green"
               mac:           "64:b7:08:90:5c:c4"
@@ -53,7 +71,7 @@ rros:
               name:          "Node 5 - Waveshare ESP32-S3 Zero"
               mac:           "24:ec:4a:26:8f:5c"
               device:        "zero"
-              enabled:       True
+              enabled:       False
             - id:            "n6"
               name:          "Node 6 - TinyPICO red"
               mac:           "98:cd:ac:d3:41:b8"
@@ -66,4 +84,5 @@ rros:
               name:          "Node 8 - Radiozoa WeAct ESP32-S3"
               mac:           "10:20:ba:08:b7:84"
               enabled:       True
+
 #EOF

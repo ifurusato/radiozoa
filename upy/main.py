@@ -15,6 +15,7 @@ from colorama import Fore, Style
 
 from colors import *
 from logger import Logger, Level
+from component import Component
 from orientation import Orientation
 from pixel import Pixel
 from rros import RROS
@@ -78,8 +79,6 @@ try:
     # blocks until completion
     _rros.enable()
 
-    # show eyeballs closing
-    _rros.indicate_shutdown()
 
 except KeyboardInterrupt:
     log.info('interrupted.')
@@ -89,8 +88,13 @@ except Exception as e:
     log.error('{} raised: {}'.format(type(e), e))
     sys.print_exception(e)
 finally:
-    if _rros and not _rros.closed:
-        _rros.close()
+    if _rros:
+        # show eyeballs closing
+        _rros.indicate_shutdown()
+        if not _rros.closed:
+            _rros.close()
+        Component.close_registry()
+        log.info('closed component registry.')
     _config      = None
     _rros        = None
     _relay_setup = None
