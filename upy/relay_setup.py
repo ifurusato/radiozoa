@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-07-08
-# modified: 2026-07-12
+# modified: 2026-07-30
 
 import sys
 from colorama import Fore, Style
@@ -19,14 +19,14 @@ from gateway import NetworkGateway
 from surveyor import Surveyor
 from relay import Relay
 
-ENABLE_TOUCH_SUBSCRIBER = False # we use its subclass RemoteControl instead
-
 class RelaySetup:
 
     def __init__(self, config, message_bus, message_factory, pixel, level=Level.INFO):
 
         self._log = Logger('main', Level.INFO)
         try:
+            _cfg = config['rros']['relay_setup']
+            _enable_touch_subscriber = _cfg['enable_touch_subscriber'] # we use its subclass RemoteControl instead
             _networking = Networking()
             # create relay
             _relay = Relay(config=config, networking=_networking, message_factory=message_factory, pixel=pixel)
@@ -47,7 +47,7 @@ class RelaySetup:
                 _touch_publisher = TouchPublisher(config, message_bus, message_factory)
                 _touch_publisher.enable()
 
-            elif ENABLE_TOUCH_SUBSCRIBER and _relay.is_endpoint():
+            elif _enable_touch_subscriber and _relay.is_endpoint():
                 self._log.info("creating touch subscriber…")
                 from touch_subscriber import TouchSubscriber
 

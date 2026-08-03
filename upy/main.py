@@ -7,9 +7,16 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-06-21
+# modified: 2026-07-27
 
-import sys, os, gc
+import sys
+
+# force module reload
+for mod in ['main', 'rros']:
+    if mod in sys.modules:
+        del sys.modules[mod]
+
+import os, gc
 import time
 from colorama import Fore, Style
 
@@ -26,11 +33,6 @@ RELAY_SETUP = True
 START_COUNT = 3
 
 log = Logger('main', Level.INFO)
-
-# force module reload
-for mod in ['main']:
-    if mod in sys.modules:
-        del sys.modules[mod]
 
 def pre_blink():
     for i in range(START_COUNT):

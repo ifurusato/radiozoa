@@ -37,7 +37,7 @@ class TouchPublisher(Publisher):
                 suppressed=False, enabled=False, level=level)
         _cfg = config['rros']['touch_publisher']
         self._verbose    = _cfg['verbose']
-        self._active     = _cfg['active']
+        self._active     = _cfg['active']        # actually send messages?
         poll_interval_ms = _cfg['poll_interval_ms']
         self._debounce_delay_ms = _cfg.get('debounce_delay_ms', 333)
         # I2C
@@ -46,17 +46,12 @@ class TouchPublisher(Publisher):
         self._i2c = I2C(1, scl=scl_pin, sda=sda_pin, freq=400000)
         self._mpr = mpr121.MPR121(self._i2c)
         self._poll_interval_ms = poll_interval_ms
-
-        # State tracking using the unified instances
+        # state tracking using the unified instances
         self._button_states = {btn: 0 for btn in ExplorerButton.all()}
-
-        # Tracks the last ticks_ms timestamp when a message was published for each button
+        # tracks the last ticks_ms timestamp when a message was published for each button
         self._last_publish_time = {btn: 0 for btn in ExplorerButton.all()}
-
         self._task = None
         self._log.info('ready.')
-
-    # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     def enable(self):
         '''

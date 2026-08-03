@@ -17,9 +17,9 @@ from logger import Logger, Level
 from component import Component
 
 class PushButton(Component):
+    NAME = 'push-btn'
 
     def __init__(self, pin_number=None, callback=None, level=Level.INFO):
-        NAME = 'push-btn'
         '''
         A push button implementation that includes a debounce feature. The callback
         is used to indicate an event has occurred.
