@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-07-13
+# modified: 2026-08-04
 
 from machine import Pin, PWM
 from colorama import Fore, Style
@@ -124,12 +124,14 @@ class Motor(Component):
         '''
         Sets motor power in [-1.0, 1.0]. positive drives forward, negative reverse.
         '''
-        if not self.enabled:
+        if self.enabled:
+            self._log.info('set power: {}'.format(value))
+            if value >  1.0: value =  1.0
+            elif value < -1.0: value = -1.0
+            self._execute_hardware_power(value)
+        else: 
+            self._log.warn('set power failed: disabled.')
             self._execute_hardware_power(0.0)
-            return
-        if value >  1.0: value =  1.0
-        elif value < -1.0: value = -1.0
-        self._execute_hardware_power(value)
 
     def _execute_hardware_power(self, value):
         '''

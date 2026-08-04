@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-07-25
+# modified: 2026-08-04
 
 import asyncio
 import time
@@ -67,7 +67,7 @@ class MotorController(Component):
         _cfg = config['rros']['motor_controller']
         self._visualiser     = visualiser
         self._visualise      = _cfg['visualise']
-        if self._visualiser.pixel_count < 24:
+        if self._visualiser is None or self._visualiser.pixel_count < 24:
             # we require a 24 pixel ring
             self._visualise  = False
         self._deadband       = config['rros']['analog_control']['deadband']
@@ -154,7 +154,7 @@ class MotorController(Component):
         if _registry:
             self._dip_switch = _registry.get('dip-switch')
             if not self._dip_switch:
-                self._log.warn('no DIP switch available.')
+                self._log.warn('no DIP switch available (default on).')
             if self._visualiser is None:
                 self._visualiser = _registry.get('visualiser')
         if self._visualiser:
@@ -728,7 +728,7 @@ class MotorController(Component):
         self._motor_stbd.disable()
         super().disable()
         if self._poll_task:
-            self._poll_task.cancel()
+#           self._poll_task.cancel()
             self._poll_task = None
         self._log.info('disabled.')
 

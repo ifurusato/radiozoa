@@ -14,7 +14,7 @@ rros:
         verbose:           False
     surveyor:
         verbose:           False
-    touch_pad_publisher:               # from RobotPad
+    touch_pad_publisher:               # from TouchPad
         threshold:         35000
         poll_ms:              50
         on_touch:           True
@@ -49,7 +49,7 @@ rros:
               name:          "Node 1 - ESP32-S3 Super Mini"
               mac:           "e0:72:a1:e8:b9:54"
               device:        "super-mini"
-              enabled:       False
+              enabled:       True
 
 #           - id:            "n2"
 #             name:          "Node 2 - TinyPICO light green" # USB Micro-B
@@ -88,10 +88,10 @@ rros:
 #             mac:           "98:cd:ac:d3:41:9c"
 #             enabled:       False
 
-            - id:            "n9"
-              name:          "Node 9 - TinyS3 w antenna"
-              mac:           "dc:54:75:eb:69:c8"
-              enabled:       True
+#           - id:            "n9"
+#             name:          "Node 9 - TinyS3 w antenna"
+#             mac:           "dc:54:75:eb:69:c8"
+#             enabled:       True
 
 #           - id:            "n10"
 #             name:          "Node 10 - WeAct ESP32-S3" # red antenna
@@ -100,7 +100,8 @@ rros:
 
             - id:            "n11"
               name:          "Node 11 - Radiozoa WeAct ESP32-S3"
-              mac:           "10:20:ba:08:b7:84"
+#             mac:           "10:20:ba:08:b7:84" # 1st WeAct board
+              mac:           "10:20:ba:08:b7:38" # 2nd WeAct board w/red antenna
               enabled:       True
 
 #EOF

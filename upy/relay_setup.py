@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-07-08
-# modified: 2026-07-30
+# modified: 2026-08-04
 
 import sys
 from colorama import Fore, Style
@@ -60,6 +60,7 @@ class RelaySetup:
                 _rtc_subscriber = RtcSubscriber(config, message_bus)
 
             self._log.info("scheduling relay task and starting event loop…")
+            _gateway.enable()
             _relay.enable()
             if _initiator:
                 _initiator.enable()
