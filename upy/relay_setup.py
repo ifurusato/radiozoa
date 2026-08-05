@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-07-08
-# modified: 2026-08-04
+# modified: 2026-07-30
 
 import sys
 from colorama import Fore, Style

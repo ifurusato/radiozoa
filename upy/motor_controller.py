@@ -7,8 +7,9 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-08-04
+# modified: 2026-07-25
 
+import sys
 import asyncio
 import time
 import itertools
@@ -19,7 +20,7 @@ from component import Component
 from orientation import Orientation
 from pixel import Pixel
 from motor import Motor
-from util import Util
+from util import is_close
 from pid import PID
 
 class MotorController(Component):
@@ -72,7 +73,7 @@ class MotorController(Component):
             self._visualise  = False
         self._deadband       = config['rros']['analog_control']['deadband']
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._verbose        = _cfg['verbose']
+        self._verbose        = True # _cfg['verbose']
         self._visualise_hue  = True
         self._hue_angle      = 0.875
         self._period_ms      = _cfg['period_ms']
@@ -496,7 +497,7 @@ class MotorController(Component):
                 pwr_stbd = pwr_stbd * self._stopping_ratio
                 if ( ( _delta_port == 0 and _delta_stbd == 0 )
                             or self._stopping_ratio < 0.0
-                            or Util.is_close(self._stopping_ratio, 0.0, abs_tol=0.01)
+                            or is_close(self._stopping_ratio, 0.0, abs_tol=0.01)
                         ):
                     self._stopping = False
                     self._stopped  = True
@@ -517,9 +518,9 @@ class MotorController(Component):
 
         # odometry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         if self._verbose and self._count % 20 == 0:
-            self._log.info('port: {:.1f}mm/s {:.1f}mm | stbd: {:.1f}mm/s {:.1f}mm; '.format(
-                    self._velocity_port, self._motor_port.get_distance_mm(), 
-                    self._velocity_stbd, self._motor_stbd.get_distance_mm()) 
+            self._log.info('port: {:.1f} / {:.1f}mm/s {:.1f}mm | stbd: {:.1f} / {:.1f}mm/s {:.1f}mm; '.format(
+                    pwr_port, self._velocity_port, self._motor_port.get_distance_mm(),
+                    pwr_stbd, self._velocity_stbd, self._motor_stbd.get_distance_mm()) 
                     + Fore.BLUE + 'port: {} steps, stbd: {} steps.'.format(self._motor_port.steps, self._motor_stbd.steps))
 
         # ring visualisation ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -597,6 +598,7 @@ class MotorController(Component):
                 await asyncio.sleep_ms(self._period_ms)
         except Exception as e:
             self._log.error('cannot continue: error in poll loop: {}'.format(e))
+            sys.print_exception(e)
             self.disable()
 
     # motor commands ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈

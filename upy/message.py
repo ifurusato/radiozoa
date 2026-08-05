@@ -13,7 +13,7 @@ import time
 from colorama import Fore, Style
 
 from event import Event
-from util import Util
+from util import ellipsis
 
 class Message:
     '''
@@ -127,7 +127,7 @@ class Message:
             return "None"
         has_magenta = Fore.MAGENTA in value
         val_str = str(value) if not isinstance(value, str) else value
-        return Util.ellipsis(val_str, max_len)
+        return ellipsis(val_str, max_len)
 
     def __repr__(self):
         return 'Message[\n  id={},{}\n  event={},\n  value={},\n  timestamp={}ms\n]'.format(
