@@ -201,6 +201,7 @@ class RemoteControl(Behaviour):
         self._log.info('button 4: b. zero intent vector: ({:2f}, {:2f}, {:2f})'.format(vx, vy, omega))
         self._vx, self._vy, self._omega = self._motor_controller.flatten_to_vy(vx, vy, omega)
         self._update_vector('even')
+        self._motor_controller.reset_odometry(Orientation.ALL)
         return True
 
     def _handle_button_up(self):

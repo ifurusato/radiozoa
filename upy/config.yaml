@@ -49,7 +49,7 @@ rros:
         stbd_trim:             1.0
         pid:
             kp:                0.12
-            ki:                0.000
+            ki:                0.050
             kd:                0.000
             kff:               0.80
         slew:

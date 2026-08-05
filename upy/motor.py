@@ -77,15 +77,29 @@ class Motor(Component):
         _motor_encoder_cpr  = 12.0
         _gear_ratio         = 70.0  # 70:1 gear reduction
         # derived geometry for odometry
-        _ticks_per_wheel_rev = _motor_encoder_cpr * _gear_ratio  # 840.0
+        self._ticks_per_wheel_rev = _motor_encoder_cpr * _gear_ratio  # 840.0 from Pololu motors
+        self._ticks_per_wheel_rev = 694.0 # from Pimoroni motors
         _circumference       = 3.14159265 * _wheel_diameter_mm
-        self._mm_per_tick    = _circumference / _ticks_per_wheel_rev
+        self._mm_per_tick    = _circumference / self._ticks_per_wheel_rev
+        self._ticks_per_mm   = self._ticks_per_wheel_rev / _circumference 
         self._log.info('odometry: {}mm/tick.'.format(self._mm_per_tick))
         # odometry
         self._steps         = 0
         self._log.info('ready.')
 
     # encoder ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+    @property
+    def mm_per_tick(self):
+        return self._mm_per_tick
+
+    @property
+    def ticks_per_mm(self):
+        return self._ticks_per_mm
+
+    @property
+    def ticks_per_wheel_rev(self):
+        return self._ticks_per_wheel_rev
 
     def _enc_irq(self, pin):
         '''

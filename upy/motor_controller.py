@@ -49,18 +49,6 @@ class MotorController(Component):
     :param visualiser:   optional NeoPixel ring for motor speed visualisation
     :param level:        the logging level
     '''
-    # wheel geometry and encoder constants (must match Motor)
-    _WHEEL_DIAMETER_MM = 59.0
-    _ENCODER_CPR       = 121.12
-    _CIRCUMFERENCE     = 3.14159265 * _WHEEL_DIAMETER_MM
-    _MM_PER_TICK       = _CIRCUMFERENCE / _ENCODER_CPR
-    _TICKS_PER_MM      = _ENCODER_CPR / _CIRCUMFERENCE
-    # closed-loop operating boundaries in cps
-    _MIN_CPS           = 50.0
-    _MAX_CPS           = 520.0
-    # maximum operational velocity in mm/s (corresponds to normalised 1.0)
-    _MAX_VELOCITY_MMS  = _MAX_CPS * _MM_PER_TICK
-
     def __init__(self, config=None, visualiser=None, level=Level.INFO):
         Component.__init__(self, MotorController.NAME, suppressed=False, enabled=False, level=level)
         if config is None:
@@ -116,6 +104,13 @@ class MotorController(Component):
                 enc_b_pin=self._pin_enc2b,
                 reverse_encoder=True,
                 level=level)
+        # geometry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._mm_per_tick = self._motor_port.mm_per_tick
+        # closed-loop operating boundaries in cps
+        _MIN_CPS           = 50.0
+        _MAX_CPS           = 520.0
+        # maximum operational velocity in mm/s (corresponds to normalised 1.0)
+        self._max_velocity_mms  = _MAX_CPS * self._mm_per_tick
         # PID controllers ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         _pid_cfg = _cfg['pid']
         _kp                  = _pid_cfg['kp']      # 0.25
@@ -165,7 +160,7 @@ class MotorController(Component):
             self._log.info('ring visualiser available.')
         else:
             self._log.warn('no ring visualiser available.')
-        self._log.info('maximum velocity: {}mm/s.'.format(self._MAX_VELOCITY_MMS))
+        self._log.info('maximum velocity: {}mm/s.'.format(self._max_velocity_mms))
         # slew limits ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         _slew_cfg = _cfg['slew']
         self._slew_vy        = _slew_cfg['vy']    # 0.20
@@ -334,7 +329,7 @@ class MotorController(Component):
         Sets the target velocity in mm/s for the specified motor(s).
         Use Orientation.PORT, Orientation.STBD, or Orientation.ALL.
         '''
-        _normalised = float(velocity_mms) / self._MAX_VELOCITY_MMS
+        _normalised = float(velocity_mms) / self._max_velocity_mms
         if _normalised > 1.0: _normalised = 1.0
         elif _normalised < -1.0: _normalised = -1.0
 #       self._log.info(Fore.WHITE + Style.BRIGHT + 'set linear velocity {}; normalised: {}…'.format(velocity_mms, _normalised))
@@ -384,7 +379,7 @@ class MotorController(Component):
         else:
             raise ValueError('unsupported orientation: {}'.format(orientation.name))
 
-    def _reset_odometry(self, orientation):
+    def reset_odometry(self, orientation):
         '''
         Resets the odometry for the specified motor(s).
         Use Orientation.PORT, Orientation.STBD, or Orientation.ALL.
@@ -432,6 +427,9 @@ class MotorController(Component):
         if max_v > 1.0:
             v_port /= max_v
             v_stbd /= max_v
+        # motor trim compensation
+        v_port *= self._port_trim
+        v_stbd *= self._stbd_trim
         # velocity measurement from step deltas
         _steps_port           = self._motor_port.steps
         _steps_stbd           = self._motor_stbd.steps
@@ -440,8 +438,8 @@ class MotorController(Component):
         self._last_steps_port = _steps_port
         self._last_steps_stbd = _steps_stbd
         _ticks_per_sec        = 1000.0 / self._period_ms
-        self._velocity_port   = _delta_port * _ticks_per_sec * self._MM_PER_TICK
-        self._velocity_stbd   = _delta_stbd * _ticks_per_sec * self._MM_PER_TICK
+        self._velocity_port   = _delta_port * _ticks_per_sec * self._mm_per_tick
+        self._velocity_stbd   = _delta_stbd * _ticks_per_sec * self._mm_per_tick
 
         if not self._velocity_filter_initd:
             self._filtered_velocity_port = self._velocity_port
@@ -464,10 +462,10 @@ class MotorController(Component):
         
         # motor drive
         if self._closed_loop:
-#           _norm_vel_port = self._velocity_port / self._MAX_VELOCITY_MMS
-#           _norm_vel_stbd = self._velocity_stbd / self._MAX_VELOCITY_MMS
-            _norm_vel_port = self._filtered_velocity_port / self._MAX_VELOCITY_MMS
-            _norm_vel_stbd = self._filtered_velocity_stbd / self._MAX_VELOCITY_MMS
+#           _norm_vel_port = self._velocity_port / self._max_velocity_mms
+#           _norm_vel_stbd = self._velocity_stbd / self._max_velocity_mms
+            _norm_vel_port = self._filtered_velocity_port / self._max_velocity_mms
+            _norm_vel_stbd = self._filtered_velocity_stbd / self._max_velocity_mms
 
             self._pid_port.setpoint = v_port
             self._pid_stbd.setpoint = v_stbd
@@ -707,7 +705,7 @@ class MotorController(Component):
         self._last_omega = 0.0
         self._stopping_ratio = 1.0
         self._stopping_delta = 1.0
-        self._reset_odometry(Orientation.ALL)
+        self.reset_odometry(Orientation.ALL)
 
     def disable(self):
         if self.enabled:
