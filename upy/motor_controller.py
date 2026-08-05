@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-07-25
+# modified: 2026-08-05
 
 import sys
 import asyncio
@@ -98,6 +98,9 @@ class MotorController(Component):
         self._log.info('motor encoders: enc1A={}; enc1B={}; enc2A={}; enc2B={}'.format(
                 self._pin_enc1a, self._pin_enc1b, self._pin_enc2a, self._pin_enc2b))
         self._poll_task = None
+        # motor trim ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._port_trim  = _cfg['port_trim']
+        self._stbd_trim  = _cfg['stbd_trim']
         # motors ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._motor_port = Motor(
                 Orientation.PORT,
