@@ -12,14 +12,27 @@ from machine import Pin, I2C
 from math import degrees, atan2
 from utime import sleep_ms
 from ustruct import unpack_from
+
 import icm20948
 
-i2c = I2C(1, scl=38, sda=18, freq=400000)
+print('configuring I2C bus…')
+i2c_id    =  1
+scl       = 38
+sda       = 18
+i2c_baud_rate = 400_000
+i2c = I2C(i2c_id, scl=scl, sda=sda, freq=i2c_baud_rate)
 
-# dmp = False for direct Acc/Gyr/Magn
-# dmp = True for DMP processor
+#I2C0_SCL = Pin(07)
+#I2C0_SDA = Pin(06)
+#i2c0 = I2C(0, sda=I2C0_SDA, scl=I2C0_SCL, freq = 400_000)
+
+#dmp = False for direct Acc/Gyr/Magn
+#dmp = True for DMP processor
+
 choice = input("Shall we use DMP processor (y/n) ? ")
-imu = icm20948.ICM20948(i2c, dmp = True if (choice=="y") else False, debug=0b01001)
+
+_debug = 0b01001
+imu = icm20948.ICM20948(i2c, dmp = True if (choice=="y") else False, debug=0)
 
 if imu.dmp_ready :
     
@@ -40,12 +53,12 @@ if imu.dmp_ready :
     #imu.DMP_enable_sensor("LINEAR_ACCELERATION",True)
     #imu.DMP_enable_sensor("ORIENTATION",True)
 
-# calibration for Accelerometer, Gyrometer and Magnetometer
-# imu.gyro_cal()
-# imu.acc_cal()
-# imu.mag_cal()
+#Calibration for Accelerometer, Gyrometer and Magnetometer
+#imu.gyro_cal()
+#imu.acc_cal()
+#imu.mag_cal()
 
-# Class properties used are acc, gyro and mag values
+#Class properties used are acc, gyro and mag values
 
 while True:
     a = imu.acc
@@ -55,12 +68,14 @@ while True:
     heading = imu.heading
     pitch = imu.pitch
     roll = imu.roll
+
     print(f"""
 Accel: {a[0]:05.2f} {a[1]:05.2f} {a[2]:05.2f}
 Gyro:  {g[0]:05.2f} {g[1]:05.2f} {g[2]:05.2f}
 Mag:   {m[0]:05.2f} {m[1]:05.2f} {m[2]:05.2f}
 HPT:   {heading:7.3f} {pitch:7.3f} {roll:7.3f}
 """)
+        
     sleep_ms(25)
 
 #EOF
