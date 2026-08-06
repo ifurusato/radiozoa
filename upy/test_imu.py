@@ -1,3 +1,4 @@
+
 #!/micropython
 # -*- coding: utf-8 -*-
 #
@@ -21,6 +22,7 @@ imu = icm20948.ICM20948(i2c, dmp=True, debug=0)
 
 if imu.dmp_ready:
     imu.DMP_enable_sensor("ROTATION_VECTOR", True)
+    imu.DMP_enable_sensor("MAGNETIC_FIELD_UNCALIBRATED", True)
 
 def quat_to_euler(q123, north_angle=0):
     '''
@@ -40,7 +42,8 @@ def quat_to_euler(q123, north_angle=0):
 while True:
     imu.DMP_fifo_proceed()
     heading, pitch, roll = quat_to_euler(imu._quat9)
-    print('''heading: {:7.3f}; pitch: {:7.3f}; roll: {:7.3f}'''.format(heading, pitch, roll))
+    print('''heading: {:7.3f}; pitch: {:7.3f}; roll: {:7.3f}; quat9_ac: {:7.4f}; mag: {:7.2f} {:7.2f} {:7.2f}'''.format(
+        heading, pitch, roll, imu._quat9_ac, imu._mag[0], imu._mag[1], imu._mag[2]))
     sleep_ms(250)
 
 #EOF
