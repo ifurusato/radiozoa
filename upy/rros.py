@@ -1,4 +1,4 @@
-#!/micropython
+#!/micropythoj
 # -*- coding: utf-8 -*-
 #
 # Copyright 2020-2026 by Ichiro Furusato. All rights reserved. This file is part
