@@ -489,8 +489,13 @@ class MotorController(Component):
             pwr_stbd = self._apply_deadzone(pwr_stbd)
 
             # compensate motor deadband
-            pwr_port = self._apply_deadband_compensation(pwr_port)
-            pwr_stbd = self._apply_deadband_compensation(pwr_stbd)
+#           pwr_port = self._apply_deadband_compensation(pwr_port)
+#           pwr_stbd = self._apply_deadband_compensation(pwr_stbd)
+
+            # compensate motor deadband
+            _deadband = self._deadband_accel if vy >= 0.0 else self._deadband_decel
+            pwr_port = self._apply_deadband_compensation(pwr_port, _deadband)
+            pwr_stbd = self._apply_deadband_compensation(pwr_stbd, _deadband)
 
             if self._stopping:
                 # if stopping, gradually suppress output
@@ -564,7 +569,7 @@ class MotorController(Component):
             return 0.0
         return power
 
-    def _apply_deadband_compensation(self, power):
+    def x_apply_deadband_compensation(self, power):
         '''
         Compensate for motor breakaway deadband.
         '''
@@ -572,6 +577,16 @@ class MotorController(Component):
             return self._deadband_accel + power * (1.0 - self._deadband_accel)
         elif power < 0.0:
             return -self._deadband_decel + power * (1.0 - self._deadband_decel)
+        return 0.0
+
+    def _apply_deadband_compensation(self, power, deadband):
+        '''
+        Compensate for motor breakaway deadband, using the given deadband constant.
+        '''
+        if power > 0.0:
+            return deadband + power * (1.0 - deadband)
+        elif power < 0.0:
+            return -deadband + power * (1.0 - deadband)
         return 0.0
 
     async def _poll_loop(self):

@@ -18,20 +18,23 @@ from behaviour import Behaviour
 from logger import Level
 from imu import IMU
 
+
 class Point(Behaviour):
     NAME = 'point'
     '''
-    With a target heading, asynchronously attempts aligns the robot with that
-    heading, by outputting rotational speed (omega) to the motor controller.
+    With a target heading, asynchronously aligns the robot with that
+    heading by outputting rotational speed (omega) to the motor controller.
     This Behaviour does not subscribe to any events.
 
     Note that the functioning of the behaviour relies not on enable/disable
     but on suppress and release. The behaviour does need to be enabled in order
-    for its loop task to occur, but it's suppress and release that determine if
+    for its loop task to occur, but its suppress and release determine if
     the intent vector is actually modified.
 
-    :param message_bus:      the message bus
+    :param config:           the configuration dictionary
+    :param message_bus:      the message bus instance
     :param motor_controller: the MotorController instance
+    :param imu:              the IMU instance
     :param level:            the logging level
     '''
     def __init__(self, config=None, message_bus=None, motor_controller=None, imu=None, level=Level.INFO):
@@ -47,26 +50,38 @@ class Point(Behaviour):
         else:
             self._log.info('imu available.')
         self._task = None
+
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._verbose  = _cfg['verbose']
-        self._priority = _cfg['priority']
+        self._verbose      = _cfg['verbose']
+        self._priority     = _cfg['priority']
+        self._kp           = _cfg.get('kp', 0.008)
+        self._ki           = _cfg.get('ki', 0.0)
+        self._kd           = _cfg.get('kd', 0.002)
+        self._tolerance    = _cfg.get('tolerance', 1.5)
+        self._hysteresis   = _cfg.get('hysteresis', 1.0)
+        self._max_omega    = _cfg.get('max_omega', 0.20)
+        self._max_slew     = _cfg.get('max_slew', 0.5)
+        self._max_integral = _cfg.get('max_integral', 10.0)
+
+        # target & state ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+        self._target_heading = 0.0
+        self._stop_on_target = False
+        self._aligned        = False
+
         # intent vector ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._vx    = 0.0
         self._vy    = 0.0
         self._omega = 0.0
         self._intent_vector = (self._vx, self._vy, self._omega)
+
         # PID controller ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._kp = 0.02 # TODO from config
-        self._ki = 0.0
-        self._kd = 0.005
-        self._tolerance = tolerance
         self._previous_error = 0.0
         self._integral = 0.0
         self._log.info('ready.')
 
     def _update_vector(self):
         self._intent_vector = (self._vx, self._vy, self._omega)
-        self._log.info('intent updated: ' + Fore.GREEN + '{}'.format(self._intent_vector))
+        self._log.debug('intent updated: ' + Fore.GREEN + '{}'.format(self._intent_vector))
 
     def _normalize_error(self, target_heading, current_heading):
         '''
@@ -74,45 +89,103 @@ class Point(Behaviour):
         '''
         return (target_heading - current_heading + 180) % 360 - 180
 
-    async def align_to(self, target_heading, rate_hz=20):
+    def align_to(self, target_heading, stop_on_target=False, rate_hz=20):
         '''
-        Rotates in place until current heading is within tolerance of target.
+        Synchronously sets or updates the target heading and spawns the loop
+        task if it is not already running.
         '''
+        self._target_heading = target_heading
+        self._stop_on_target = stop_on_target
+        self._aligned = False
+
+        if self._task is None or self._task.done():
+            self._task = asyncio.create_task(self._run_loop(rate_hz))
+
+    def stop(self):
+        '''
+        Cancels the active control task and zero-sets rotational velocity.
+        '''
+        if self._task is not None and not self._task.done():
+            self._task.cancel()
+            self._task = None
+        self._omega = 0.0
+        self._aligned = False
+        self._update_vector()
+
+    async def _run_loop(self, rate_hz=20):
         self._previous_error = 0.0
         self._integral = 0.0
+        self._aligned = False
 
         interval_ms = int(1000 / rate_hz)
         last_ticks = time.ticks_ms()
 
-        while self.enabled:
-            now_ticks = time.ticks_ms()
-            dt = time.ticks_diff(now_ticks, last_ticks) / 1000.0
-            last_ticks = now_ticks
+        try:
+            while self.enabled:
+                now_ticks = time.ticks_ms()
+                dt = time.ticks_diff(now_ticks, last_ticks) / 1000.0
+                last_ticks = now_ticks
 
-            current_heading = self._imu.heading
-            error = self._normalize_error(target_heading, current_heading)
+                current_heading = self._imu.heading
+                error = self._normalize_error(self._target_heading, current_heading)
+                abs_error = abs(error)
 
-            if abs(error) <= self._tolerance:
-                # target reached; halt rotation and exit task
-                self._motor_controller.set_intent((0.0, 0.0, 0.0))
-                break
+                # Evaluate deadband and hysteresis
+                if self._aligned:
+                    if abs_error > (self._tolerance + self._hysteresis):
+                        self._aligned = False
+                else:
+                    if abs_error <= self._tolerance:
+                        self._aligned = True
 
-            self._integral += error * dt
-            derivative = (error - self._previous_error) / dt if dt > 0 else 0.0
-            self._previous_error = error
+                if self._aligned:
+                    self._omega = 0.0
+                    self._integral = 0.0
+                    self._previous_error = 0.0
 
-            # pass intent vector (vx, vy, omega) to motor controller
-            if self.released:
-                self._omega = (self._kp * error) + (self._ki * self._integral) + (self._kd * derivative)
-                self._log.info('released; ' + Fore.GREEN + 'omega: {:.2f}.'.format(self._omega))
-#               self._motor_controller.set_intent((0.0, 0.0, omega))
-            else:
-                self._omega = 0.0
-                self._log.info(Style.DIM + 'suppressed; ' + Fore.GREEN + 'omega: {:.2f}.'.format(omega))
+                    if self._stop_on_target:
+                        self._update_vector()
+                        self._log.info('target heading reached.')
+                        break
+                elif self.released:
+                    self._integral += error * dt
+                    if self._max_integral > 0.0:
+                        self._integral = max(-self._max_integral, min(self._max_integral, self._integral))
 
-            self._update_vector():
+                    derivative = (error - self._previous_error) / dt if dt > 0 and self._previous_error != 0.0 else 0.0
+                    self._previous_error = error
 
-            await asyncio.sleep_ms(interval_ms)
+                    raw_omega = (self._kp * error) + (self._ki * self._integral) + (self._kd * derivative)
+                    target_omega = max(-self._max_omega, min(self._max_omega, raw_omega))
+
+                    # Apply slew rate limiting
+                    if self._max_slew > 0.0 and dt > 0.0:
+                        max_change = self._max_slew * dt
+                        delta = target_omega - self._omega
+                        if delta > max_change:
+                            self._omega += max_change
+                        elif delta < -max_change:
+                            self._omega -= max_change
+                        else:
+                            self._omega = target_omega
+                    else:
+                        self._omega = target_omega
+
+                    self._log.info('released at {:.2f}°; '.format(current_heading) + Fore.GREEN + 'omega: {:.2f}.'.format(self._omega))
+                else:
+                    self._omega = 0.0
+                    self._log.info(Style.DIM + 'suppressed at {:.2f}°; '.format(current_heading) + Fore.GREEN + 'omega: {:.2f}.'.format(self._omega))
+
+                self._update_vector()
+
+                await asyncio.sleep_ms(interval_ms)
+
+        except asyncio.CancelledError:
+            self._omega = 0.0
+            self._update_vector()
+            raise
+        finally:
+            self._task = None
 
     def enable(self):
         if self.disabled:
@@ -128,6 +201,7 @@ class Point(Behaviour):
 
     def disable(self):
         if self.enabled:
+            self.stop()
             if self._motor_controller:
                 self._motor_controller.remove_intent_vector(Point.NAME)
             super().disable()
