@@ -30,6 +30,7 @@ from logger import Logger, Level
 from message_bus import MessageBus
 from message_factory import MessageFactory
 from motor_controller import MotorController
+from imu import IMU
 
 from radiozoa_config import RadiozoaConfig
 from radiozoa_sensor import RadiozoaSensor
@@ -60,6 +61,7 @@ class RROS(Component):
             Component.__init__(self, RROS.NAME, suppressed=False, enabled=False, level=self._level)
         self._roam_enabled     = self._config['rros']['roam']['enabled']
         self._drive_enabled    = self._config['rros']['drive']['enabled']
+        self._point_enabled    = self._config['rros']['point']['enabled']
         self._eyeballs_enabled = self._config['rros']['eyeballs']['enabled']
         self._motor_controller_enabled = self._config['rros']['motor_controller']['enabled']
         self._motor_controller_enabled_on_start = self._config['rros']['motor_controller']['enabled_on_start']
@@ -71,8 +73,12 @@ class RROS(Component):
         if _radiozoa_enabled and not _radiozoa_dip_enabled:
             self._log.warn('cannot enable radiozoa: DIP switch 2 is set OFF.')
         self._radiozoa_enabled = _radiozoa_enabled and _radiozoa_dip_enabled
-        self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}; drive enabled? {}'.format(
-            self._radiozoa_enabled, self._roam_enabled, self._drive_enabled) + Style.RESET_ALL)
+        self._log.info(Fore.WHITE + 'radiozoa enabled? {}; roam enabled? {}; drive enabled? {}; point enabled? {}'.format(
+                self._radiozoa_enabled,
+                self._roam_enabled,
+                self._drive_enabled,
+                self._point_enabled
+            ) + Style.RESET_ALL)
         self._closing = False
         # pixel and ring ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         if pixel:
@@ -98,11 +104,11 @@ class RROS(Component):
         _i2c_baud_rate = _i2c_cfg['baud_rate'] # 400_000
         self._i2c = I2C(_i2c_id, scl=_scl, sda=_sda, freq=_i2c_baud_rate)
         # visual indicator ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        _i2c_scanner = I2CScanner(self._i2c)
-        if not _i2c_scanner.devices:
-            _i2c_scanner.scan()
-        _has_port_eyeball = _i2c_scanner.has_hex_address(self._PORT_EYEBALL_ADDRESS)
-        _has_stbd_eyeball = _i2c_scanner.has_hex_address(self._STBD_EYEBALL_ADDRESS)
+        self._i2c_scanner = I2CScanner(self._i2c)
+        if not self._i2c_scanner.devices:
+            self._i2c_scanner.scan()
+        _has_port_eyeball = self._i2c_scanner.has_hex_address(self._PORT_EYEBALL_ADDRESS)
+        _has_stbd_eyeball = self._i2c_scanner.has_hex_address(self._STBD_EYEBALL_ADDRESS)
         if self._eyeballs_enabled and _has_port_eyeball and _has_stbd_eyeball:
             self._log.info('creating eyeballs…')
             self._eyeballs = Eyeballs(self._i2c)
@@ -127,7 +133,9 @@ class RROS(Component):
         self._drive          = None
         self._radiozoa       = None
         self._remote_control = None
+        self._imu            = None
         self._roam           = None
+        self._point          = None
         if self._ring is not None:
             from ring_visualiser import RingVisualiser
 
@@ -176,6 +184,19 @@ class RROS(Component):
 
             self._log.info('creating roam behaviour…')
             self._roam = Roam(self._config, self._message_bus, self._motor_ctrl, self._visualiser, level=self._level)
+
+        _has_lis2mdl  = self._i2c_scanner.has_hex_address(IMU.LIS2MDL_I2C_ADDRESS)
+        _has_icm20948 = self._i2c_scanner.has_hex_address(IMU.ICM20948_I2C_ADDRESS)
+        if _has_lis2mdl and _has_icm20948:
+            self._imu = IMU(self._config, self._i2c, level=self._level)
+        else:
+            self._log.info('cannot start IMU: no LIS2MDL or ICM20948 devices available.')
+
+        if self._point_enabled:
+            from point import Point
+
+            self._log.info('creating point behaviour…')
+            self._point = Point(self._config, self._message_bus, self._motor_ctrl, level=self._level)
 
         if self._remote_control_enabled:
             from remote_control import RemoteControl
@@ -247,6 +268,10 @@ class RROS(Component):
             self._roam.enable()
         if self._drive_enabled:
             self._drive.enable() # after delay, drive will enable motor controller
+        if self._imu:
+            self._imu.enable()
+        if self._point:
+            self._point.enable()
         if self._motor_controller_enabled_on_start:
             self._motor_ctrl.enable()
         self._pixel.set_color(color=COLOR_DEEP_CYAN)

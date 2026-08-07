@@ -20,15 +20,26 @@ from machine import Pin, I2C
 from utime import sleep_ms
 
 from imu import IMU
+from logger import Logger, Level
+from config_loader import ConfigLoader
 
+config = ConfigLoader.configure()
 i2c = I2C(1, scl=38, sda=18, freq=400000)
+imu = IMU(config, i2c)
 
-# using the previously-determined calibration offsets, no calibrate() call
-imu = IMU(i2c)
+log = Logger('test', Level.INFO)
+log.info('starting…')
 
-while True:
-    heading, pitch, roll = imu.heading_pitch_roll
-    print('''heading: {:7.3f}; pitch: {:7.3f}; roll: {:7.3f}'''.format(heading, pitch, roll))
-    sleep_ms(250)
+try:
+    while True:
+        heading, pitch, roll = imu.heading_pitch_roll
+        log.info('heading: {:7.3f}; pitch: {:7.3f}; roll: {:7.3f}'.format(heading, pitch, roll))
+        sleep_ms(250)
+
+except KeyboardInterrupt:
+    log.info('Ctrl-C caught, exiting…')
+except Exception as e:
+    log.error('{} raised: {}'.format(type(e), e))
+    sys.print_exception(e)
 
 #EOF

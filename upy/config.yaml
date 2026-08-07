@@ -21,6 +21,10 @@ rros:
         verbose:           False
         visualise:          True
         pin_analog:           22
+    point:
+        enabled:            True
+        verbose:           False
+        priority:              0.4
 
     # components ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
     i2c:
@@ -39,6 +43,12 @@ rros:
         pin:                  21
         pixel_count:           8
         brightness:          0.1
+    imu:
+        heading_trim:      239.0       # offset to north
+        offset_x:           24.23      # X orientation offset
+        offset_y:          -22.58      # Y orientation offset
+        scale_x:             0.983     # offset oval X axis
+        scale_y:             1.018     # offset oval Y axis
     motor_controller:
         enabled:            True       # instantiated
         enabled_on_start:  False       # enabled when started
