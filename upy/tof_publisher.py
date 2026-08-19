@@ -67,7 +67,9 @@ class ToFPublisher(Publisher):
 
 
     def _get_color(self, value):
-        if value <= 50:
+        if value < 0:
+            return Fore.BLACK
+        elif value <= 50:
             return Fore.RED
         elif value <= 100:
             return Fore.YELLOW
@@ -76,9 +78,9 @@ class ToFPublisher(Publisher):
         elif value <= 300:
             return Fore.CYAN
         elif value <= 500:
-            return Fore.MAGENTA
+            return Fore.BLUE
         else:
-            return Fore.BLACK
+            return Fore.MAGENTA
 
     def _formatter(self, distances):
         parts = []

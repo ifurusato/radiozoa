@@ -89,6 +89,7 @@ rros:
         pixel_24:             12
         pixel_8:               4
         xshut:                33
+        enabled:            True 
       - index:                 1
         impl:          "VL53L1X"
         label:             "NE1"       # red/white
@@ -96,6 +97,7 @@ rros:
         pixel_24:             15
         pixel_8:               5
         xshut:                 8
+        enabled:            True 
       - index:                 2
         impl:          "VL53L1X"
         label:              "E2"       # green/grey
@@ -103,6 +105,7 @@ rros:
         pixel_24:             18
         pixel_8:               6
         xshut:                10
+        enabled:           False 
       - index:                 3
         impl:          "VL53L1X"
         label:             "SE3"       # green/white
@@ -110,6 +113,7 @@ rros:
         pixel_24:             21
         pixel_8:               7
         xshut:                13
+        enabled:           False 
       - index:                 4
         impl:          "VL53L1X"
         label:              "S4"       # blue/grey
@@ -117,6 +121,7 @@ rros:
         pixel_24:              0
         pixel_8:               0
         xshut:                15
+        enabled:           False 
       - index:                 5
         impl:          "VL53L1X"
         label:             "SW5"       # blue/white
@@ -124,6 +129,7 @@ rros:
         pixel_24:              3
         pixel_8:               1
         xshut:                11
+        enabled:           False 
       - index:                 6
         impl:          "VL53L1X"
         label:              "W6"       # grey
@@ -131,6 +137,7 @@ rros:
         pixel_24:              6
         pixel_8:               2
         xshut:                 9
+        enabled:           False 
       - index:                 7
         impl:          "VL53L1X"
         label:             "NW7"       # white
@@ -138,5 +145,6 @@ rros:
         pixel_24:              9
         pixel_8:               3
         xshut:                34
+        enabled:            True 
 
 #EOF

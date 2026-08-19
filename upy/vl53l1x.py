@@ -143,6 +143,7 @@ class VL53L1X:
         self._debug = debug
         self._distance_mode = distance_mode
         self._timing_budget_ms = timing_budget_ms
+        self._timeout_ms = 100
         self._status = 0
         time.sleep_ms(100)
         self.init()
@@ -160,7 +161,7 @@ class VL53L1X:
             sensorState = self.boot_state()
             time.sleep_ms(2)
             timeout_count += 1
-            if timeout_count > 100:
+            if timeout_count > self._timeout_ms:
                 raise TimeoutError()
         if not self._status:
             self._status = self.sensor_init()

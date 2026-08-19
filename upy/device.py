@@ -32,7 +32,7 @@ class Device:
 
           d = Device.by_index(3)
     '''
-    def __init__(self, index, impl, label, address, xshut, pixel_8, pixel_24):
+    def __init__(self, index, impl, label, address, xshut, pixel_8, pixel_24, enabled=True):
         self._index    = index
         self._impl     = impl
         self._label    = label
@@ -40,12 +40,14 @@ class Device:
         self._xshut    = xshut
         self._pixel_8  = pixel_8
         self._pixel_24 = pixel_24
-        self._driver = None
-
-        # instantiate the pin even if impl is None to maintain structural symmetry
-        from machine import Pin
-        self._pin = Pin(xshut, Pin.OUT)
-
+        self._driver   = None
+        self._enabled  = enabled
+        if self._enabled:
+            # instantiate the pin even if impl is None to maintain structural symmetry
+            from machine import Pin
+            self._pin = Pin(xshut, Pin.OUT)
+        else:
+            self._pin = None
         Device._registry.append(self)
 
     @property
@@ -81,8 +83,13 @@ class Device:
         return self._driver
 
     @driver.setter
-    def driver(self, value):
-        self._driver = value
+    def driver(self, driver):
+        print('SET DEVICE DRIVER TO: {}'.format(driver))
+        self._driver = driver
+
+    @property
+    def enabled(self):
+        return self._enabled
 
     def set_xshut(self, state):
         '''
@@ -94,15 +101,18 @@ class Device:
     def init_driver(self, i2c):
         '''
         Instantiates the matching MicroPython driver for this sensor at its configured address.
+
+        If the driver has already been set this does nothing.
         '''
-        if self._impl == 'VL53L1X':
-            from vl53l1x import VL53L1X
-            self._driver = VL53L1X(i2c, address=self._address)
-        elif self._impl == 'VL53L0X':
-            from vl53l0x import VL53L0X
-            self._driver = VL53L0X(i2c, address=self._address)
-        else:
-            self._driver = None
+        if self._driver is None:
+            if self._impl == 'VL53L1X':
+                from vl53l1x import VL53L1X
+
+                self._driver = VL53L1X(i2c, address=self._address)
+            elif self._impl == 'VL53L0X':
+                from vl53l0x import VL53L0X
+
+                self._driver = VL53L0X(i2c, address=self._address)
 
     def __int__(self):
         return self._index

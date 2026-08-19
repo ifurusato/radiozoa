@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-07-18
+# modified: 2026-08-19
 
 import os
 import asyncio
@@ -34,8 +34,8 @@ from imu import IMU
 
 from radiozoa_config import RadiozoaConfig
 from radiozoa_sensor import RadiozoaSensor
-from tof_publisher import ToFPublisher
 from radiozoa import Radiozoa
+from tof_publisher import ToFPublisher
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class RROS(Component):
@@ -68,8 +68,11 @@ class RROS(Component):
         self._remote_control_enabled   = self._config['rros']['remote_control']['enabled']
         # enable radiozoa if config is True and DIP switch 2 is set ON
         self._dip_switch       = DipSwitch()
+        self._log.info(Fore.MAGENTA + 'configuration: {}'.format(self._dip_switch))
         _radiozoa_enabled      = self._config['rros']['radiozoa']['enabled']
         _radiozoa_dip_enabled  = self._dip_switch.get_switch(2)
+        if not _radiozoa_enabled:
+            self._log.warn('radiozoa not enabled in configuration.')
         if _radiozoa_enabled and not _radiozoa_dip_enabled:
             self._log.warn('cannot enable radiozoa: DIP switch 2 is set OFF.')
         self._radiozoa_enabled = _radiozoa_enabled and _radiozoa_dip_enabled
@@ -152,24 +155,26 @@ class RROS(Component):
             time.sleep_ms(200)
         if self._configure_radiozoa:
             # configure sensor addresses synchronously before async loop starts
-            self._log.info('configuring radiozoa…')
+            self._log.info(Fore.MAGENTA + 'configuring radiozoa…')
             self._radiozoa_config = RadiozoaConfig(config=self._config, i2c=self._i2c, visualiser=self._visualiser, level=self._level)
             self._radiozoa_config.configure(self.continue_init) # as callback
         else:
+            self._log.info(Fore.MAGENTA + 'not configuring radiozoa.')
             self._radiozoa_config = None
             self.continue_init()
 
     def continue_init(self):
-        self._log.debug('continuing initialisation…')
+        self._log.info(Fore.MAGENTA + 'continuing initialisation…')
         if self._radiozoa_config and not self._radiozoa_config.configured:
             raise RuntimeError('sensor configuration failed.')
         if self._configure_radiozoa:
-            self._log.info('creating radiozoa sensor…')
+            self._log.info(Fore.MAGENTA + 'creating radiozoa sensor…')
             self._sensor = RadiozoaSensor(i2c=self._i2c, level=self._level)
-            self._log.info('initialising device drivers…')
             self._sensor.init_device_drivers()
             self._log.info('creating publisher…')
             self._tof_publisher = ToFPublisher(self._config, self._sensor, self._message_bus, self._message_factory, level=self._level)
+        else:
+            self._log.info(Fore.MAGENTA + 'not creating radiozoa sensor.')
 
         if self._motor_controller_enabled:
             self._log.info('creating motor controller…')
@@ -185,6 +190,8 @@ class RROS(Component):
             self._log.info('creating roam behaviour…')
             self._roam = Roam(self._config, self._message_bus, self._motor_ctrl, self._visualiser, level=self._level)
 
+#       LIS2MDL_I2C_ADDRESS  = 0x1E
+#       ICM20948_I2C_ADDRESS = 0x69
         _has_lis2mdl  = self._i2c_scanner.has_hex_address(IMU.LIS2MDL_I2C_ADDRESS)
         _has_icm20948 = self._i2c_scanner.has_hex_address(IMU.ICM20948_I2C_ADDRESS)
         if _has_lis2mdl and _has_icm20948:
@@ -192,7 +199,7 @@ class RROS(Component):
         else:
             self._log.info('cannot start IMU: no LIS2MDL or ICM20948 devices available.')
 
-        if self._point_enabled:
+        if self._imu and self._point_enabled:
             from point import Point
 
             self._log.info('creating point behaviour…')
@@ -393,7 +400,7 @@ class RROS(Component):
         for component in components.values():
             count += 1
             name = component.name
-            self._log.debug('closing {}…'.format(name))
+            self._log.info('closing {}…'.format(name))
             component.close()
             # poll closed property with a 50ms timeout
             elapsed_ms = 0

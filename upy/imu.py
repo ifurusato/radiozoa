@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-08-06
-# modified: 2026-08-06
+# modified: 2026-08-07
 
 import time
 from math import degrees, atan2, asin, sqrt, sin, cos, radians
@@ -31,6 +31,7 @@ class IMU(Component):
         _icm_debug = 0
         self._icm = icm20948.ICM20948(i2c, dmp=True, debug=_icm_debug)
         if self._icm.dmp_ready:
+            self._icm.DMP_enable_sensor("GYROSCOPE", True)
             self._icm.DMP_enable_sensor("ROTATION_VECTOR", True)
             self._icm.DMP_enable_sensor("MAGNETIC_FIELD_UNCALIBRATED", True)
         self._lis = lis2mdl.LIS2MDL(i2c)
@@ -111,6 +112,13 @@ class IMU(Component):
         The current (scale_x, scale_y) soft-iron calibration values.
         '''
         return self._scale_x, self._scale_y
+
+    @property
+    def gyro(self):
+        '''
+        Returns the (X, Y, Z) angular velocity tuple from the ICM20948 DMP.
+        '''
+        return self._icm.gyro
 
     def _update_pitch_roll(self):
         self._icm.DMP_fifo_proceed()

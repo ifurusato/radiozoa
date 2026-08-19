@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-08-05
+# modified: 2026-08-07
 
 import sys
 import asyncio
@@ -211,6 +211,14 @@ class MotorController(Component):
     @property
     def stopped(self):
         return self._stopped
+
+    @property
+    def slew_omega(self):
+        return self._slew_omega
+
+    @slew_omega.setter
+    def slew_omega(self, value):
+        self._slew_omega = value
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 

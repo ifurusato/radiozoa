@@ -73,17 +73,20 @@ class RemoteControl(Behaviour):
         }
         self._led_task = None
         self._reset_task = None
+        self._heading = 0 # used by get_next_heading()
         # intent vector ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._vx    = 0.0
         self._vy    = 0.0
         self._omega = 0.0
         self._intent_vector = (self._vx, self._vy, self._omega)
         self._priority = self.PRIORITY
+        self._target_heading = 0.0 # used by point
         # components ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         _registry = Component.get_registry()
         self._roam = _registry.get('beh:roam')
         self._eyeballs = _registry.get('eyeballs')
         self._tof_publisher = _registry.get('pub:tof-pub')
+        self._point = _registry.get('beh:point')
         self._log.info('ready.')
 
     def _update_vector(self, name):
@@ -243,6 +246,8 @@ class RemoteControl(Behaviour):
 
     def _handle_button_b(self):
         self._log.info('button B: brake')
+        if self._point:
+            self._point.suppress()
         self._motor_controller.brake()
         if self._reset_task:
             self._reset_task.cancel()
@@ -258,12 +263,30 @@ class RemoteControl(Behaviour):
         self._reset_task = asyncio.create_task(self._reset_velocity(2000))
         return True
 
+    def get_next_heading(self, clockwise=True):
+        '''
+        Steps 90 degrees in the specified direction and returns the new heading.
+        '''
+        self._heading = (self._heading + (90 if clockwise else -90)) % 360
+        return self._heading
+
     def _handle_button_y(self):
-        self._log.info('button Y: stop')
-        self._motor_controller.stop()
-        if self._reset_task:
-            self._reset_task.cancel()
-        self._reset_task = asyncio.create_task(self._reset_velocity(250))
+        self._target_heading = self.get_next_heading()
+        self._log.info('button Y: point to: {}°')
+        if self._point:
+            if self._point.suppressed:
+                self._point.release()
+#           else:
+#               self._point.suppress()
+            self._point.align_to(self._target_heading, stop_on_target=False, rate_hz=20)
+            self._log.info('point set to: ' + Fore.GREEN + '{:.2f}°.'.format(self._target_heading)) 
+        else:
+            self._log.warn('no point behaviour available.')
+
+#       self._motor_controller.stop()
+#       if self._reset_task:
+#           self._reset_task.cancel()
+#       self._reset_task = asyncio.create_task(self._reset_velocity(250))
         return True
 
     async def _reset_velocity(self, delay_ms):

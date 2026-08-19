@@ -26,6 +26,8 @@ class RadiozoaSensor:
     Radiozoa sensor board. Assumes all sensors are already configured at addresses
     0x30-0x37 by RadiozoaConfig.
 
+    A mock sensor always returns -1.
+
     :param i2c:     the I2C bus
     :param level:   the logging level
     : public API preserved exactly while delegating driver state to Device.
@@ -39,6 +41,7 @@ class RadiozoaSensor:
         self._log = Logger('sensor', level=level)
         self._i2c = i2c
         self._is_ranging = False
+        self._min = -1
         self._distance_offset = 50
         self._log.info('ready.')
 
@@ -58,7 +61,9 @@ class RadiozoaSensor:
         return None
 
     def init_device_drivers(self):
+        self._log.info('initialising device drivers…')
         for device in Device.all():
+            self._log.info('initialising device {}…'.format(device.label))
             device.init_driver(self._i2c)
         self._log.info('devices initialised.')
 
@@ -110,7 +115,7 @@ class RadiozoaSensor:
         if device and device.driver:
             try:
                 _raw = await device.driver.read_async()
-                return max(0, _raw - self._distance_offset)
+                return max(self._min, _raw - self._distance_offset)
             except Exception as e:
                 self._log.error('{} raised reading sensor {}: {}'.format(
                         type(e), device.label, e))
@@ -129,7 +134,7 @@ class RadiozoaSensor:
             if device.driver:
                 try:
                     _raw = await device.driver.read_async()
-                    distances.append(max(0, _raw - self._distance_offset))
+                    distances.append(max(self._min, _raw - self._distance_offset))
                 except Exception as e:
                     self._log.error('{} reading sensor {}: {}'.format(
                             type(e), device.label, e))
@@ -145,7 +150,7 @@ class RadiozoaSensor:
         '''
         if device and device.driver:
             try:
-                return max(0, device.driver.read() - self._distance_offset)
+                return max(self._min, device.driver.read() - self._distance_offset)
             except Exception as e:
                 self._log.error('{} raised reading sensor {}: {}'.format(
                         type(e), device.label, e))
@@ -163,7 +168,7 @@ class RadiozoaSensor:
         for device in Device.all():
             if device.driver:
                 try:
-                    distances.append(max(0, device.driver.read() - self._distance_offset))
+                    distances.append(max(self._min, device.driver.read() - self._distance_offset))
                 except Exception as e:
                     self._log.error('{} reading sensor {}: {}'.format(
                             type(e), device.label, e))

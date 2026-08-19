@@ -54,14 +54,15 @@ class Point(Behaviour):
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._verbose      = _cfg['verbose']
         self._priority     = _cfg['priority']
-        self._kp           = _cfg.get('kp', 0.008)
-        self._ki           = _cfg.get('ki', 0.0)
-        self._kd           = _cfg.get('kd', 0.002)
-        self._tolerance    = _cfg.get('tolerance', 1.5)
-        self._hysteresis   = _cfg.get('hysteresis', 1.0)
-        self._max_omega    = _cfg.get('max_omega', 0.20)
-        self._max_slew     = _cfg.get('max_slew', 0.5)
-        self._max_integral = _cfg.get('max_integral', 10.0)
+        self._kp           = _cfg.get('kp', 0.003)            # proportional gain (heading error sensitivity) (was 0.007)
+        self._ki           = _cfg.get('ki', 0.0)              # integral gain (steady-state error accumulation)
+        self._kd           = _cfg.get('kd', 0.001)            # derivative gain (rotational velocity damping)
+        self._tolerance    = _cfg.get('tolerance', 1.5)       # target error threshold in degrees
+        self._hysteresis   = _cfg.get('hysteresis', 1.0)      # deadband buffer in degrees to prevent oscillation
+        self._max_omega    = _cfg.get('max_omega', 0.08)      # maximum angular velocity output cap
+        self._max_slew     = _cfg.get('max_slew', 5.0)        # maximum allowable change in angular velocity per loop (was 0.4)
+        self._max_integral = _cfg.get('max_integral', 10.0)   # anti-windup clamp on accumulated integral error
+        self._use_gyro_damping = False
 
         # target & state ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._target_heading = 0.0
@@ -130,7 +131,7 @@ class Point(Behaviour):
                 error = self._normalize_error(self._target_heading, current_heading)
                 abs_error = abs(error)
 
-                # Evaluate deadband and hysteresis
+                # evaluate deadband and hysteresis
                 if self._aligned:
                     if abs_error > (self._tolerance + self._hysteresis):
                         self._aligned = False
@@ -147,18 +148,24 @@ class Point(Behaviour):
                         self._update_vector()
                         self._log.info('target heading reached.')
                         break
+
                 elif self.released:
                     self._integral += error * dt
                     if self._max_integral > 0.0:
                         self._integral = max(-self._max_integral, min(self._max_integral, self._integral))
 
-                    derivative = (error - self._previous_error) / dt if dt > 0 and self._previous_error != 0.0 else 0.0
-                    self._previous_error = error
+                    if self._use_gyro_damping:
+                        # direct gyro damping (CW negative, CCW positive)
+                        gyro_z = self._imu.gyro[2]
+                        raw_omega = (self._kp * error) + (self._ki * self._integral) + (self._kd * gyro_z)
+                        target_omega = max(-self._max_omega, min(self._max_omega, raw_omega))
+                    else:
+                        derivative = (error - self._previous_error) / dt if dt > 0 and self._previous_error != 0.0 else 0.0
+                        self._previous_error = error
+                        raw_omega = (self._kp * error) + (self._ki * self._integral) + (self._kd * derivative)
+                        target_omega = max(-self._max_omega, min(self._max_omega, raw_omega))
 
-                    raw_omega = (self._kp * error) + (self._ki * self._integral) + (self._kd * derivative)
-                    target_omega = max(-self._max_omega, min(self._max_omega, raw_omega))
-
-                    # Apply slew rate limiting
+                    # apply slew rate limiting
                     if self._max_slew > 0.0 and dt > 0.0:
                         max_change = self._max_slew * dt
                         delta = target_omega - self._omega
@@ -174,7 +181,7 @@ class Point(Behaviour):
                     self._log.info('released at {:.2f}°; '.format(current_heading) + Fore.GREEN + 'omega: {:.2f}.'.format(self._omega))
                 else:
                     self._omega = 0.0
-                    self._log.info(Style.DIM + 'suppressed at {:.2f}°; '.format(current_heading) + Fore.GREEN + 'omega: {:.2f}.'.format(self._omega))
+#                   self._log.debug(Style.DIM + 'suppressed at {:.2f}°; '.format(current_heading) + Fore.GREEN + 'omega: {:.2f}.'.format(self._omega))
 
                 self._update_vector()
 
