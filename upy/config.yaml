@@ -66,6 +66,7 @@ rros:
             kd:                0.000
             kff:               0.80
         pid-steering:
+            steer_with_imu:    False   # incorporate IMU with steering PID?
             enabled:            True
             kp:                0.000
             ki:                0.002

@@ -109,11 +109,11 @@ class MotorController(Component):
                 level=level)
         # geometry ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._mm_per_tick = self._motor_port.mm_per_tick
-        # closed-loop operating boundaries in cps
-        _MIN_CPS           = 50.0
-        _MAX_CPS           = 520.0
         # maximum operational velocity in mm/s (corresponds to normalised 1.0)
-        self._max_velocity_mms  = _MAX_CPS * self._mm_per_tick
+        self._max_cps          = 520.0
+        self._wheel_track_mm   = config['rros']['odometer']['wheel_track_mm']
+        self._max_velocity_mms = self._max_cps * self._mm_per_tick
+        self._max_speed_mms    = self._max_cps * self._mm_per_tick
         # PID controllers ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         _pid_cfg = _cfg['pid']
         _kp                  = _pid_cfg['kp']      # 0.25
@@ -131,16 +131,18 @@ class MotorController(Component):
         self._stop_task      = None
         # steering PID for dynamic straight-line trim ┈┈┈┈┈┈
         _steer_cfg                = _cfg['pid-steering']
+        _steer_with_imu           = _steer_cfg['steer_with_imu']
         self._steering_enabled    = _steer_cfg['enabled']
         self._imu            = None
-        if _registry and self._steering_enabled:
+        if _registry and self._steering_enabled and _steer_with_imu:
             from imu import IMU
 
             self._imu = _registry.get(IMU.NAME)
-            self._log.info('🤡 steering controller available.')
+            self._log.info('steering controller with IMU available.')
+        elif self._steering_enabled:
+            self._log.info('steering controller enabled without IMU.')
         else:
-            self._steering_enabled = False
-            self._log.info('🤢 steering controller unavailable.')
+            self._log.info('no steering controller available.')
         self._steering_threshold  = _steer_cfg['threshold']
         self._steering_trim_clamp = _steer_cfg['trim_clamp']
         self._dynamic_port_trim   = self._port_trim
@@ -505,19 +507,19 @@ class MotorController(Component):
             )
 
         # motor trim compensation
-        if ( self._steering_enabled
-                and abs(omega) < self._steering_threshold
-                and abs(vx)    < self._steering_threshold ):
-            _step_error = _delta_stbd - _delta_port
-            _correction = self._steering_pid(_step_error)
+        if self._steering_enabled:
+            if self._imu:
+                _omega_rads = (v_port - v_stbd) * self._max_speed_mms / self._wheel_track_mm
+                _error      = self._imu.gyro[2] - _omega_rads
+            else:
+                _error      = _delta_stbd - _delta_port
+            _correction = self._steering_pid(_error)
             _base = self._port_trim
             self._dynamic_port_trim = max(
                     _base - self._steering_trim_clamp,
                     min(_base + self._steering_trim_clamp,
                         self._dynamic_port_trim + _correction))
             v_port *= self._dynamic_port_trim
-            _color = Fore.RED if self._dynamic_port_trim < 0.93 else Fore.GREEN
-#           self._log.info('correction: {}; '.format(_correction) + _color + ' trim: {};'.format(self._dynamic_port_trim))
         else:
             self._steering_pid.reset()
             self._dynamic_port_trim = self._port_trim
