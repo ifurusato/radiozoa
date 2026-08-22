@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2020-11-10
-# modified: 2026-07-18
+# modified: 2026-08-21
 
 import asyncio
 from colorama import Fore, Style
@@ -84,6 +84,31 @@ class MessageBus(Component):
         super().close()
 
     def enable(self):
+        '''
+        Enable the message bus and start the processing loop.
+        This call will block until disable() is called.
+        '''
+        if not self.closed and not self.enabled:
+            super().enable()
+            try:
+                task = asyncio.current_task()
+                is_loop_running = task is not None
+            except (RuntimeError, ValueError, AttributeError):
+                is_loop_running = False
+            if is_loop_running:
+                return asyncio.create_task(self._start_consuming())
+            else:
+                try:
+                    asyncio.run(self._start_consuming())
+                except KeyboardInterrupt:
+                    self._log.info('interrupted via keyboard.')
+                finally:
+                    self.disable()
+        else:
+            self._log.warn('already enabled or closed.')
+        return None
+
+    def x_enable(self):
         '''
         Enable the message bus and start the processing loop.
         This call will block until disable() is called.

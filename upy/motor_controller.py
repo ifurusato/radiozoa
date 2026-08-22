@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-08-07
+# modified: 2026-08-22
 
 import sys
 import asyncio
@@ -61,7 +61,7 @@ class MotorController(Component):
             self._visualise  = False
         self._deadband       = config['rros']['analog_control']['deadband']
         # configuration ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-        self._verbose        = True # _cfg['verbose']
+        self._verbose        = _cfg['verbose']
         self._visualise_hue  = True
         self._hue_angle      = 0.875
         self._period_ms      = _cfg['period_ms']
@@ -156,6 +156,7 @@ class MotorController(Component):
                 self._log.warn('no DIP switch available (default on).')
             if self._visualiser is None:
                 self._visualiser = _registry.get('visualiser')
+        self._is_dip_enabled = self._dip_switch.get_switch(1) if self._dip_switch else True
         if self._visualiser:
             self._log.info('ring visualiser available.')
         else:
@@ -172,8 +173,9 @@ class MotorController(Component):
         # closed loop mode from config ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._counter        = itertools.count()
         self._closed_loop    = _cfg['closed_loop']
-        self._log.info('{} closed-loop mode.'.format('enabled' if self._closed_loop else 'disabled'))
+        self._log.info('{} mode.'.format('closed-loop' if self._closed_loop else 'open-loop'))
         self._log.info('ready.')
+
 
     # properties ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
@@ -241,12 +243,6 @@ class MotorController(Component):
         equivalent_vy = vy + abs(omega_final)
         equivalent_vy = max(-1.0, min(1.0, equivalent_vy))
         return (0.0, equivalent_vy, 0.0)
-
-    def is_dip_enabled(self):
-        if self._dip_switch:
-            return self._dip_switch.get_switch(1)
-        else:
-            return True
 
     def get_motor(self, orientation):
         if orientation is Orientation.PORT:
@@ -411,6 +407,7 @@ class MotorController(Component):
         If a callback has been set it is executed at the end of this method.
         If it is a one shot it is executed a single time.
         '''
+#       self._log.info(Fore.MAGENTA + 'tick…')
         vx, vy, omega = self.blend_intent_vectors()
 
         self._count = next(self._counter)
@@ -607,16 +604,14 @@ class MotorController(Component):
             self._log.warn('poll loop called while disabled.')
         elif self.suppressed:
             self._log.warn('poll loop called while suppressed.')
-        elif not self.is_dip_enabled():
-            self._log.warn('poll loop called with DIP switch 1 disabled.')
         elif self._motor_port.disabled or self._motor_stbd.disabled:
             self._log.warn('poll loop called with motor(s) disabled.')
         else:
             self._log.info(Fore.GREEN + 'starting motor controller loop…')
         try:
             while ( self.enabled 
-                    and not self.suppressed 
-                    and self.is_dip_enabled() ):
+                    and self._is_dip_enabled
+                    and not self.suppressed ):
                 if not self._stopped:
                     self._tick()
                 await asyncio.sleep_ms(self._period_ms)
@@ -634,9 +629,12 @@ class MotorController(Component):
             self._motor_stbd.enable()
             self._stopping = False
             self._stopped  = False
-            if self._poll_task is None:
+            if not self._is_dip_enabled:
+                self._log.warn('enabled with DIP switch 1 set OFF.')
+            elif self._poll_task is None:
+                self._log.debug('starting poll task…')
                 self._poll_task = asyncio.create_task(self._poll_loop())
-                self._log.info('poll task started.')
+                self._log.debug('poll task started.')
             else:
                 self._log.warn('poll task already active.')
             self._log.info('enabled.')

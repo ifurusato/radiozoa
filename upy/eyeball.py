@@ -102,7 +102,7 @@ Eyeball.BLUSH = Eyeball(4, 'blush', COLOR_PINK, [
     [0, 0, 0, 0, 0]
 ])
 
-Eyeball.LOOK_STBD = Eyeball(5, 'look-stbd', COLOR_ORANGE, [
+Eyeball.LOOK_STBD = Eyeball(5, 'look-stbd', COLOR_APPLE, [
     [0, 0, 0, 1, 0],
     [0, 0, 1, 0, 0],
     [0, 1, 0, 0, 0],
@@ -110,7 +110,7 @@ Eyeball.LOOK_STBD = Eyeball(5, 'look-stbd', COLOR_ORANGE, [
     [0, 0, 0, 1, 0]
 ])
 
-Eyeball.LOOK_PORT = Eyeball(6, 'look-port', COLOR_ORANGE, [
+Eyeball.LOOK_PORT = Eyeball(6, 'look-port', COLOR_APPLE, [
     [0, 1, 0, 0, 0],
     [0, 0, 1, 0, 0],
     [0, 0, 0, 1, 0],
@@ -118,7 +118,7 @@ Eyeball.LOOK_PORT = Eyeball(6, 'look-port', COLOR_ORANGE, [
     [0, 1, 0, 0, 0]
 ])
 
-Eyeball.LOOK_UP = Eyeball(7, 'look-up', COLOR_ORANGE, [
+Eyeball.LOOK_UP = Eyeball(7, 'look-up', COLOR_APPLE, [
     [0, 0, 0, 0, 0],
     [0, 0, 1, 0, 0],
     [0, 1, 0, 1, 0],
@@ -126,7 +126,7 @@ Eyeball.LOOK_UP = Eyeball(7, 'look-up', COLOR_ORANGE, [
     [0, 0, 0, 0, 0]
 ])
 
-Eyeball.LOOK_DOWN = Eyeball(8, 'look-down', COLOR_ORANGE, [
+Eyeball.LOOK_DOWN = Eyeball(8, 'look-down', COLOR_APPLE, [
     [0, 0, 0, 0, 0],
     [1, 0, 0, 0, 1],
     [0, 1, 0, 1, 0],

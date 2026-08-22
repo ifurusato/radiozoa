@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-07
-# modified: 2026-07-13
+# modified: 2026-07-22
 
 from machine import Pin, PWM
 from colorama import Fore, Style
@@ -23,14 +23,18 @@ class Motor(Component):
     and reads position from a quadrature encoder using a single A-channel interrupt
     with B-channel as direction reference.
 
-    Power is expressed as a float in [-1.0, 1.0]; positive is forward, negative reverse.
-    Velocity measurement, PID control, and SI unit conversion are handled externally
-    by MotorController.
+    Power is expressed as a float in [-1.0, 1.0]; positive is forward, negative
+    reverse. Velocity measurement, PID control, and SI unit conversion are handled
+    externally by MotorController.
 
-    Wheel geometry: nominally 59mm diameter (measured at 60mm), 8mm Width (5908 Standard Wheel)
-    70:1 gear ratio, N20 motors with encoder resolution: 121.12 Counts Per Revolution (CPR)
+    Wheel geometry: nominally 59mm diameter (measured at 60mm), 8mm Width (5908
+    Standard Wheel) 70:1 gear ratio, N20 motors with encoder resolution: 121.12
+    Counts Per Revolution (CPR)
 
     840 ticks per wheel rotation, 188.5mm / wheel revolution, 4454-4456 ticks per meter.
+
+    These values were derived from the motors/encoders on the Radiozoa prototype.
+    Actual values may change and depend on the specific motor installed.
 
     +--------------------+---------------+---------------+------------------+
     | Metric             | Minimum Limit | Maximum Limit | Hardware Ceiling |
@@ -81,7 +85,7 @@ class Motor(Component):
         self._ticks_per_wheel_rev = 694.0 # from Pimoroni motors
         _circumference       = 3.14159265 * _wheel_diameter_mm
         self._mm_per_tick    = _circumference / self._ticks_per_wheel_rev
-        self._ticks_per_mm   = self._ticks_per_wheel_rev / _circumference 
+        self._ticks_per_mm   = self._ticks_per_wheel_rev / _circumference
         self._log.info('odometry: {}mm/tick.'.format(self._mm_per_tick))
         # odometry
         self._steps         = 0

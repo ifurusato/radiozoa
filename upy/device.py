@@ -84,7 +84,6 @@ class Device:
 
     @driver.setter
     def driver(self, driver):
-        print('SET DEVICE DRIVER TO: {}'.format(driver))
         self._driver = driver
 
     @property

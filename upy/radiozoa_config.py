@@ -166,7 +166,7 @@ class RadiozoaConfig(Component):
                 if not found:
                     self._log.warn('sensor {} did not appear at 0x29.'.format(device.label))
                     _driver = VL53Mock(device)
-                    self._log.info(Fore.YELLOW + 'substituting mock driver for sensor {}.'.format(device.label))
+                    self._log.info('substituting mock driver for sensor {}.'.format(device.label))
                     device.driver = _driver
                     if self._visualiser:
                         self._visualiser.set_color(_pixel, COLOR_RED)
@@ -190,7 +190,7 @@ class RadiozoaConfig(Component):
                     self._visualiser.set_color(_pixel, COLOR_DARK_GREY)
                 self._log.info('sensor {} at XSHUT pin {} disabled.'.format(device.label, device.xshut))
                 _driver = VL53Mock(device)
-                self._log.info(Fore.YELLOW + 'substituting mock driver for sensor {}.'.format(device.label))
+                self._log.info('substituting mock driver for sensor {}.'.format(device.label))
                 device.driver = _driver
 
         if _count == 8:

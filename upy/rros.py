@@ -7,7 +7,7 @@
 #
 # author:   Ichiro Furusato
 # created:  2026-06-04
-# modified: 2026-08-19
+# modified: 2026-08-20
 
 import os
 import asyncio
@@ -59,6 +59,7 @@ class RROS(Component):
             Component.__init__(self, _log, suppressed=False, enabled=False, level=self._level)
         else:
             Component.__init__(self, RROS.NAME, suppressed=False, enabled=False, level=self._level)
+        self._registry = Component.get_registry()
         self._roam_enabled     = self._config['rros']['roam']['enabled']
         self._drive_enabled    = self._config['rros']['drive']['enabled']
         self._point_enabled    = self._config['rros']['point']['enabled']
@@ -67,8 +68,12 @@ class RROS(Component):
         self._motor_controller_enabled_on_start = self._config['rros']['motor_controller']['enabled_on_start']
         self._remote_control_enabled   = self._config['rros']['remote_control']['enabled']
         # enable radiozoa if config is True and DIP switch 2 is set ON
-        self._dip_switch       = DipSwitch()
-        self._log.info(Fore.MAGENTA + 'configuration: {}'.format(self._dip_switch))
+        self._dip_switch = None
+        if self._registry:
+            self._dip_switch = self._registry.get('dip-switch')
+        if self._dip_switch is None:
+            self._dip_switch = DipSwitch()
+        self._log.info('configuration: {}'.format(self._dip_switch))
         _radiozoa_enabled      = self._config['rros']['radiozoa']['enabled']
         _radiozoa_dip_enabled  = self._dip_switch.get_switch(2)
         if not _radiozoa_enabled:
@@ -155,26 +160,26 @@ class RROS(Component):
             time.sleep_ms(200)
         if self._configure_radiozoa:
             # configure sensor addresses synchronously before async loop starts
-            self._log.info(Fore.MAGENTA + 'configuring radiozoa…')
+            self._log.info('configuring radiozoa…')
             self._radiozoa_config = RadiozoaConfig(config=self._config, i2c=self._i2c, visualiser=self._visualiser, level=self._level)
             self._radiozoa_config.configure(self.continue_init) # as callback
         else:
-            self._log.info(Fore.MAGENTA + 'not configuring radiozoa.')
+            self._log.info('not configuring radiozoa.')
             self._radiozoa_config = None
             self.continue_init()
 
     def continue_init(self):
-        self._log.info(Fore.MAGENTA + 'continuing initialisation…')
+        self._log.info('continuing initialisation…')
         if self._radiozoa_config and not self._radiozoa_config.configured:
             raise RuntimeError('sensor configuration failed.')
         if self._configure_radiozoa:
-            self._log.info(Fore.MAGENTA + 'creating radiozoa sensor…')
+            self._log.info('creating radiozoa sensor…')
             self._sensor = RadiozoaSensor(i2c=self._i2c, level=self._level)
             self._sensor.init_device_drivers()
             self._log.info('creating publisher…')
             self._tof_publisher = ToFPublisher(self._config, self._sensor, self._message_bus, self._message_factory, level=self._level)
         else:
-            self._log.info(Fore.MAGENTA + 'not creating radiozoa sensor.')
+            self._log.info('not creating radiozoa sensor.')
 
         if self._motor_controller_enabled:
             self._log.info('creating motor controller…')
@@ -284,20 +289,39 @@ class RROS(Component):
         self._pixel.set_color(color=COLOR_DEEP_CYAN)
         if self._eyeballs:
             self._eyeballs.normal()
-        self._message_bus.enable() # blocking: start message bus loop
+        _message_bus_task = self._message_bus.enable() # blocking: start message bus loop
+        if _message_bus_task is not None:
+            await _message_bus_task
 
     def _startup_callback(self):
-        registry = Component.get_registry()
         self._log.info('active components:')
-        registry.print_registry()
+        self._registry.print_registry()
         self._log.info(Fore.GREEN + 'started.' + Style.RESET_ALL)
 
     def enable(self):
         if not self.enabled:
             super().enable()
-            asyncio.run(self._start())
+            try:
+                task = asyncio.current_task()
+                is_loop_running = task is not None
+            except (RuntimeError, ValueError, AttributeError):
+                is_loop_running = False
+            if is_loop_running:
+                self._log.info('async loop already running.')
+                return asyncio.create_task(self._start())
+            else:
+                self._log.info('starting async loop…')
+                asyncio.run(self._start())
         else:
             self._log.warn('already enabled.')
+        return None
+
+#   def enable(self):
+#       if not self.enabled:
+#           super().enable()
+#           asyncio.run(self._start())
+#       else:
+#           self._log.warn('already enabled.')
 
     # log handling ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
@@ -362,11 +386,10 @@ class RROS(Component):
 
     def _execute_after_close(self):
         super().close()
-        registry = Component.get_registry()
-        count = registry.count_open_components()
+        count = self._registry.count_open_components()
         if count > 1:
             self._log.warn('rros still has {} open components…'.format(count))
-            registry.print_registry()
+            self._registry.print_registry()
         else:
             self._log.info('all components closed.')
         self._log.info('closing message bus…')
@@ -384,12 +407,11 @@ class RROS(Component):
         poll_interval_ms = 5
         timeout_ms       = 20
         count = 0
-        registry = Component.get_registry()
-        total = len(registry.all())
+        total = len(self._registry.all())
         # create dict of closeable components, ignoring rros, pixel and message bus
         components = {
             key: component
-            for key, component in registry.items()
+            for key, component in self._registry.items()
             if (not component.closed
                     and component is not self
                     and component is not self._pixel
@@ -400,7 +422,7 @@ class RROS(Component):
         for component in components.values():
             count += 1
             name = component.name
-            self._log.info('closing {}…'.format(name))
+            self._log.debug('closing {}…'.format(name))
             component.close()
             # poll closed property with a 50ms timeout
             elapsed_ms = 0

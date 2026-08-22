@@ -10,7 +10,7 @@ rros:
         startup_delay:         3       # in seconds
         pin_analog:           22
     radiozoa:
-        enabled:            True
+        enabled:           False
         verbose:           False
         check_configured:   True
         force_configure:   False       # if True, force reconfiguration
@@ -52,7 +52,7 @@ rros:
     motor_controller:
         enabled:            True       # instantiated
         enabled_on_start:  False       # enabled when started
-        verbose:            True
+        verbose:           False
         visualise:          True
         closed_loop:        True
         port_trim:             1.0
