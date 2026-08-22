@@ -50,6 +50,7 @@ rros:
         scale_x:             0.983     # offset oval X axis
         scale_y:             1.018     # offset oval Y axis
     odometer:
+        verbose:           False
         wheel_track_mm:       90.0     # lateral distance between wheel contact patches
         pose_delta_mm:        20.0     # minimum displacement (mm) between pose log messages
     motor_controller:
@@ -66,8 +67,8 @@ rros:
             kd:                0.000
             kff:               0.80
         pid-steering:
-            steer_with_imu:    False   # incorporate IMU with steering PID?
-            enabled:            True
+            enabled:           False
+            steer_with_imu:    False   # incorporate IMU with steering PID
             kp:                0.000
             ki:                0.002
             kd:                0.000

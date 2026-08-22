@@ -77,6 +77,7 @@ class Odometer(Component):
         Component.__init__(self, Odometer.NAME, suppressed=False, enabled=True, level=level)
         self._motor_controller = motor_controller
         _cfg = config['rros']['odometer']
+        self._verbose        = _cfg['verbose']
         self._wheel_track_mm = _cfg['wheel_track_mm']
         self._pose_delta_mm  = _cfg['pose_delta_mm']
         # geometry from motor
@@ -235,13 +236,14 @@ class Odometer(Component):
             self._last_printed_y = self._y
             _deg    = math.degrees(self._theta)
             _rad_pi = self._theta / math.pi
-            self._log.info('pose: '
-                    + Fore.CYAN  + 'x: '     + Fore.YELLOW + '{:7.2f}mm; '.format(self._x)
-                    + Fore.CYAN  + 'y: '     + Fore.YELLOW + '{:7.2f}mm; '.format(self._y)
-                    + Fore.CYAN  + 'theta: ' + Fore.YELLOW + '{:.3f}π ({:.1f}°)'.format(_rad_pi, _deg))
-            self._log.info('velocity: '
-                    + Fore.CYAN  + 'vy: '    + Fore.YELLOW + '{:7.2f}mm/s; '.format(self._vy)
-                    + Fore.CYAN  + 'omega: ' + Fore.YELLOW + '{:7.4f}rad/s'.format(self._omega))
+            if self._verbose:
+                self._log.info('pose: '
+                        + Fore.CYAN  + 'x: '     + Fore.YELLOW + '{:7.2f}mm; '.format(self._x)
+                        + Fore.CYAN  + 'y: '     + Fore.YELLOW + '{:7.2f}mm; '.format(self._y)
+                        + Fore.CYAN  + 'theta: ' + Fore.YELLOW + '{:.3f}π ({:.1f}°)'.format(_rad_pi, _deg))
+                self._log.info('velocity: '
+                        + Fore.CYAN  + 'vy: '    + Fore.YELLOW + '{:7.2f}mm/s; '.format(self._vy)
+                        + Fore.CYAN  + 'omega: ' + Fore.YELLOW + '{:7.4f}rad/s'.format(self._omega))
 
     def reset(self):
         '''

@@ -125,7 +125,8 @@ class IMU(Component):
         q1, q2, q3 = self._icm._quat9
         q0_sq = 1.0 - (q1 * q1 + q2 * q2 + q3 * q3)
         q0 = sqrt(q0_sq) if q0_sq > 0 else 0.0
-        self._pitch = -degrees(-asin(2.0 * (q1 * q3 - q0 * q2)))
+#       self._pitch = -degrees(-asin(2.0 * (q1 * q3 - q0 * q2)))
+        self._pitch = -degrees(-asin(max(-1.0, min(1.0, 2.0 * (q1 * q3 - q0 * q2))))) # clamped
         self._roll  = degrees(atan2(2.0 * (q0 * q1 + q2 * q3), q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3))
 
     def _compute_heading_tilt_compensated(self):

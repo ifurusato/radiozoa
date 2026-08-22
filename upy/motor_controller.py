@@ -130,19 +130,24 @@ class MotorController(Component):
         self._stopped        = False
         self._stop_task      = None
         # steering PID for dynamic straight-line trim ┈┈┈┈┈┈
-        _steer_cfg                = _cfg['pid-steering']
-        _steer_with_imu           = _steer_cfg['steer_with_imu']
-        self._steering_enabled    = _steer_cfg['enabled']
-        self._imu            = None
-        if _registry and self._steering_enabled and _steer_with_imu:
+        _steer_cfg             = _cfg['pid-steering']
+        self._steer_with_imu   = _steer_cfg['steer_with_imu']
+        self._steering_enabled = _steer_cfg['enabled']
+        self._imu = None
+        if _registry:
             from imu import IMU
 
             self._imu = _registry.get(IMU.NAME)
+        if self._steering_enabled and self._steer_with_imu and self._imu:
             self._log.info('steering controller with IMU available.')
         elif self._steering_enabled:
             self._log.info('steering controller enabled without IMU.')
         else:
             self._log.info('no steering controller available.')
+        self._current_heading  = None
+        self._current_gyro_z   = 0.0
+        self._heading_poll_ms  = 200
+        self._heading_task     = None
         self._steering_threshold  = _steer_cfg['threshold']
         self._steering_trim_clamp = _steer_cfg['trim_clamp']
         self._dynamic_port_trim   = self._port_trim
@@ -508,9 +513,9 @@ class MotorController(Component):
 
         # motor trim compensation
         if self._steering_enabled:
-            if self._imu:
+            if self._steer_with_imu and self._imu:
                 _omega_rads = (v_port - v_stbd) * self._max_speed_mms / self._wheel_track_mm
-                _error      = self._imu.gyro[2] - _omega_rads
+                _error      = self._current_gyro_z - _omega_rads
             else:
                 _error      = _delta_stbd - _delta_port
             _correction = self._steering_pid(_error)
@@ -603,6 +608,10 @@ class MotorController(Component):
                     pwr_stbd, self._velocity_stbd, self._motor_stbd.get_distance_mm()) 
                     + Fore.BLUE + 'port: {} steps, stbd: {} steps.'.format(self._motor_port.steps, self._motor_stbd.steps))
 
+#       if self._imu:
+#           _heading = self._imu.heading_tilt_compensated
+#           self._log.info(Fore.GREEN + 'heading: {:.1f}°'.format(_heading))
+
         # ring visualisation ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         if self._visualiser and self._visualise:
             if abs(v_port) < self._deadband:
@@ -663,6 +672,12 @@ class MotorController(Component):
             return -deadband + power * (1.0 - deadband)
         return 0.0
 
+    async def _imu_loop(self):
+        while self.enabled and not self.suppressed:
+            self._current_heading = self._imu.heading_tilt_compensated
+            self._current_gyro_z  = self._imu.gyro[2]
+            await asyncio.sleep_ms(self._heading_poll_ms)
+
     async def _poll_loop(self):
         '''
         Main asyncio coroutine, to be added as a task by RROS.
@@ -706,6 +721,8 @@ class MotorController(Component):
                 self._log.debug('poll task started.')
             else:
                 self._log.warn('poll task already active.')
+            if self._imu:
+                self._heading_task = asyncio.create_task(self._imu_loop())
             self._log.info('enabled.')
         else:
             self._log.warn('already enabled.')
@@ -805,6 +822,9 @@ class MotorController(Component):
                 self._stop_task = asyncio.create_task(self._stop(delta=self.DELTA_COAST, disable=True))
             else:
                 self._disable()
+            if self._heading_task:
+                self._heading_task = None
+            self._intent_vectors.clear()
             self._log.debug('disabled.')
         else:
             self._log.warn('already disabled.')
