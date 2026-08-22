@@ -186,9 +186,9 @@ class Motor(Component):
         if not self.enabled:
             if self._enc_a and self._enc_b:
                 self._enc_a.irq(trigger=Pin.IRQ_RISING, handler=self._enc_irq)
-                self._log.info('enabled (closed loop).')
+                self._log.info('enabled in closed loop mode.')
             else:
-                self._log.info('enabled (open loop).')
+                self._log.info('enabled in open loop mode.')
             super().enable()
         else:
             self._log.warn('already enabled.')

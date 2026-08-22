@@ -49,6 +49,9 @@ rros:
         offset_y:          -22.58      # Y orientation offset
         scale_x:             0.983     # offset oval X axis
         scale_y:             1.018     # offset oval Y axis
+    odometer:
+        wheel_track_mm:       90.0     # lateral distance between wheel contact patches
+        pose_delta_mm:        20.0     # minimum displacement (mm) between pose log messages
     motor_controller:
         enabled:            True       # instantiated
         enabled_on_start:  False       # enabled when started

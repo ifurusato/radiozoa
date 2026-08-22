@@ -9,19 +9,20 @@
 # created:  2026-06-07
 # modified: 2026-08-22
 
-import sys
 import asyncio
-import time
 import itertools
+import sys
+import time
 from colorama import Fore, Style
 
-from logger import Level
 from component import Component
-from orientation import Orientation
-from pixel import Pixel
+from logger import Level
 from motor import Motor
-from util import is_close
+from odometer import Odometer
+from orientation import Orientation
 from pid import PID
+from pixel import Pixel
+from util import is_close
 
 class MotorController(Component):
     NAME = 'motor-ctrl'
@@ -162,6 +163,7 @@ class MotorController(Component):
         else:
             self._log.warn('no ring visualiser available.')
         self._log.info('maximum velocity: {}mm/s.'.format(self._max_velocity_mms))
+        self._odometer       = Odometer(config, self, level)
         # slew limits ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         _slew_cfg = _cfg['slew']
         self._slew_vy        = _slew_cfg['vy']    # 0.20
@@ -180,7 +182,17 @@ class MotorController(Component):
     # properties ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
     @property
+    def odometer(self):
+        '''
+        Return the Odometer used by the MotorController.
+        '''
+        return self._odometer
+
+    @property
     def visualise(self):
+        '''
+        Return True if visualisation is enabled.
+        '''
         return self._visualise
 
     @visualise.setter
@@ -192,6 +204,9 @@ class MotorController(Component):
 
     @property
     def closed_loop(self):
+        '''
+        Return True if operating in closed loop mode.
+        '''
         return self._closed_loop
 
     @closed_loop.setter
@@ -459,6 +474,9 @@ class MotorController(Component):
                     self._velocity_filter_alpha * self._filtered_velocity_stbd
                     + (1.0 - self._velocity_filter_alpha) * self._velocity_stbd
             )
+
+        # update odometry
+        self._odometer.update(time.ticks_ms())
 
         if self._verbose and self._count % 20 == 0:
             self._log.info('tick: ' + Fore.MAGENTA 
