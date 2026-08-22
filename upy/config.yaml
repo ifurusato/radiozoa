@@ -58,13 +58,20 @@ rros:
         verbose:           False
         visualise:          True
         closed_loop:        True
-        port_trim:             1.0
-        stbd_trim:             1.0
+        port_trim:             0.936
+        stbd_trim:             1.00
         pid:
             kp:                0.12
             ki:                0.050
             kd:                0.000
             kff:               0.80
+        pid-steering:
+            enabled:            True
+            kp:                0.000
+            ki:                0.002
+            kd:                0.000
+            threshold:         0.05    # max |omega| and |vx| to engage straight-line correction
+            trim_clamp:        0.05    # max deviation from base port_trim (e.g. 0.936 ± 0.05)
         slew:
             vy:                0.05
             omega:             0.10

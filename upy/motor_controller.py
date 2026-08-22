@@ -54,6 +54,7 @@ class MotorController(Component):
         Component.__init__(self, MotorController.NAME, suppressed=False, enabled=False, level=level)
         if config is None:
             raise TypeError('no configuration provided.')
+        _registry = Component.get_registry()
         _cfg = config['rros']['motor_controller']
         self._visualiser     = visualiser
         self._visualise      = _cfg['visualise']
@@ -66,6 +67,7 @@ class MotorController(Component):
         self._visualise_hue  = True
         self._hue_angle      = 0.875
         self._period_ms      = _cfg['period_ms']
+        self._ticks_per_sec  = 1000.0 / self._period_ms
         self._deadband_accel = 0.55
         self._deadband_decel = 0.40
         # ring pixels for motor speed visualisation ┈┈┈┈┈┈┈┈
@@ -127,6 +129,26 @@ class MotorController(Component):
         self._stopping       = False
         self._stopped        = False
         self._stop_task      = None
+        # steering PID for dynamic straight-line trim ┈┈┈┈┈┈
+        _steer_cfg                = _cfg['pid-steering']
+        self._steering_enabled    = _steer_cfg['enabled']
+        self._imu            = None
+        if _registry and self._steering_enabled:
+            from imu import IMU
+
+            self._imu = _registry.get(IMU.NAME)
+            self._log.info('🤡 steering controller available.')
+        else:
+            self._steering_enabled = False
+            self._log.info('🤢 steering controller unavailable.')
+        self._steering_threshold  = _steer_cfg['threshold']
+        self._steering_trim_clamp = _steer_cfg['trim_clamp']
+        self._dynamic_port_trim   = self._port_trim
+        self._steering_pid        = PID(
+                name='steering',
+                kp=_steer_cfg['kp'],
+                ki=_steer_cfg['ki'],
+                kd=_steer_cfg['kd'])
         # feed-forward gain ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._kff            = _pid_cfg['kff']     # 0.6, was 0.175
         # PID setpoints in mm/s ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
@@ -150,7 +172,6 @@ class MotorController(Component):
         self._velocity_filter_initd  = False
         # hardware/visualiser ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
         self._dip_switch = None
-        _registry = Component.get_registry()
         if _registry:
             self._dip_switch = _registry.get('dip-switch')
             if not self._dip_switch:
@@ -236,6 +257,18 @@ class MotorController(Component):
     @slew_omega.setter
     def slew_omega(self, value):
         self._slew_omega = value
+
+    @property
+    def steering_enabled(self):
+        return self._steering_enabled
+
+    @steering_enabled.setter
+    def steering_enabled(self, value):
+        if not value:
+            self._steering_pid.reset()
+            self._dynamic_port_trim = self._port_trim
+        self._steering_enabled = value
+        self._log.info('{} steering PID.'.format('enabled' if value else 'disabled'))
 
     # ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
 
@@ -447,9 +480,7 @@ class MotorController(Component):
         if max_v > 1.0:
             v_port /= max_v
             v_stbd /= max_v
-        # motor trim compensation
-        v_port *= self._port_trim
-        v_stbd *= self._stbd_trim
+
         # velocity measurement from step deltas
         _steps_port           = self._motor_port.steps
         _steps_stbd           = self._motor_stbd.steps
@@ -457,10 +488,8 @@ class MotorController(Component):
         _delta_stbd           = _steps_stbd - self._last_steps_stbd
         self._last_steps_port = _steps_port
         self._last_steps_stbd = _steps_stbd
-        _ticks_per_sec        = 1000.0 / self._period_ms
-        self._velocity_port   = _delta_port * _ticks_per_sec * self._mm_per_tick
-        self._velocity_stbd   = _delta_stbd * _ticks_per_sec * self._mm_per_tick
-
+        self._velocity_port   = _delta_port * self._ticks_per_sec * self._mm_per_tick
+        self._velocity_stbd   = _delta_stbd * self._ticks_per_sec * self._mm_per_tick
         if not self._velocity_filter_initd:
             self._filtered_velocity_port = self._velocity_port
             self._filtered_velocity_stbd = self._velocity_stbd
@@ -474,6 +503,26 @@ class MotorController(Component):
                     self._velocity_filter_alpha * self._filtered_velocity_stbd
                     + (1.0 - self._velocity_filter_alpha) * self._velocity_stbd
             )
+
+        # motor trim compensation
+        if ( self._steering_enabled
+                and abs(omega) < self._steering_threshold
+                and abs(vx)    < self._steering_threshold ):
+            _step_error = _delta_stbd - _delta_port
+            _correction = self._steering_pid(_step_error)
+            _base = self._port_trim
+            self._dynamic_port_trim = max(
+                    _base - self._steering_trim_clamp,
+                    min(_base + self._steering_trim_clamp,
+                        self._dynamic_port_trim + _correction))
+            v_port *= self._dynamic_port_trim
+            _color = Fore.RED if self._dynamic_port_trim < 0.93 else Fore.GREEN
+#           self._log.info('correction: {}; '.format(_correction) + _color + ' trim: {};'.format(self._dynamic_port_trim))
+        else:
+            self._steering_pid.reset()
+            self._dynamic_port_trim = self._port_trim
+            v_port *= self._port_trim
+        v_stbd *= self._stbd_trim
 
         # update odometry
         self._odometer.update(time.ticks_ms())
